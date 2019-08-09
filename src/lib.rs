@@ -1,20 +1,30 @@
 use failure::Fail;
 use serde::{Deserialize, Serialize};
-use std::time::Duration;
 
-schemafy::schemafy!("schema.json");
+pub mod model;
 
-#[derive(Serialize, Debug, Deserialize)]
+pub use crate::model::*;
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum YoutubeDlOutput {
     Playlist(Box<Playlist>),
     SingleVideo(Box<SingleVideo>),
 }
 
 impl YoutubeDlOutput {
-    pub fn title(&self) -> Option<&str> {
+    #[cfg(test)]
+    fn to_playlist(self) -> Playlist {
         match self {
-            YoutubeDlOutput::Playlist(playlist) => playlist.title.as_ref().map(String::as_str),
-            YoutubeDlOutput::SingleVideo(video) => Some(&video.title),
+            YoutubeDlOutput::Playlist(playlist) => *playlist,
+            _ => panic!("this is a single video, not a playlist"),
+        }
+    }
+
+    #[cfg(test)]
+    fn to_single_video(self) -> SingleVideo {
+        match self {
+            YoutubeDlOutput::SingleVideo(video) => *video,
+            _ => panic!("this is a playlist, not a single video"),
         }
     }
 }
@@ -44,32 +54,65 @@ impl From<serde_json::Error> for Error {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Args {
-    pub youtube_dl_path: Option<String>,
+pub struct YoutubeDl {
+    youtube_dl_path: Option<String>,
     /// -F
-    pub format: Option<String>,
+    format: Option<String>,
     /// --socket-timeout
-    pub socket_timeout: Option<String>,
+    socket_timeout: Option<String>,
     /// --all-formats
-    pub all_formats: bool,
+    all_formats: bool,
     /// --username + --password
-    pub auth: Option<(String, String)>,
+    auth: Option<(String, String)>,
     /// --user-agent
-    pub user_agent: Option<String>,
+    user_agent: Option<String>,
     /// --referer
-    pub referer: Option<String>,
-    /// Duration after which the child process is killed
-    pub child_timeout: Option<Duration>,
+    referer: Option<String>,
     /// URL argument
-    pub url: String,
+    url: String,
 }
 
-impl Args {
+impl YoutubeDl {
     pub fn new<S: Into<String>>(url: S) -> Self {
         Self {
             url: url.into(),
             ..Default::default()
         }
+    }
+
+    pub fn youtube_dl_path<S: Into<String>>(&mut self, youtube_dl_path: S) -> &mut Self {
+        self.youtube_dl_path = Some(youtube_dl_path.into());
+        self
+    }
+
+    pub fn format<S: Into<String>>(&mut self, format: S) -> &mut Self {
+        self.format = Some(format.into());
+        self
+    }
+
+    pub fn socket_timeout<S: Into<String>>(&mut self, socket_timeout: S) -> &mut Self {
+        self.socket_timeout = Some(socket_timeout.into());
+        self
+    }
+
+    pub fn user_agent<S: Into<String>>(&mut self, user_agent: S) -> &mut Self {
+        self.user_agent = Some(user_agent.into());
+        self
+    }
+
+    pub fn referer<S: Into<String>>(&mut self, referer: S) -> &mut Self {
+        self.referer = Some(referer.into());
+        self
+    }
+
+    pub fn all_formats(&mut self, all_formats: bool) -> &mut Self {
+        self.all_formats = all_formats;
+        self
+    }
+
+    pub fn auth<S: Into<String>>(&mut self, auth: (S, S)) -> &mut Self {
+        self.auth = Some((auth.0.into(), auth.1.into()));
+        self
     }
 
     fn path(&self) -> &str {
@@ -115,31 +158,46 @@ impl Args {
         args.push(&self.url);
         args
     }
+
+    pub fn run(self) -> Result<YoutubeDlOutput, Error> {
+        use serde_json::{json, Value};
+        use std::process::{Command, Stdio};
+
+        let process_args = self.process_args();
+        let path = self.path();
+        let output = Command::new(path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .args(process_args)
+            .output()?;
+
+        if output.status.success() {
+            let value: Value = serde_json::from_slice(&output.stdout)?;
+
+            let is_playlist = value["_type"] == json!("playlist");
+            if is_playlist {
+                let playlist: Playlist = serde_json::from_value(value)?;
+                Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
+            } else {
+                let video: SingleVideo = serde_json::from_value(value)?;
+                Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
+            }
+        } else {
+            Err(Error::ExitCode(output.status.code().unwrap_or(1)))
+        }
+    }
 }
 
-pub fn run(args: Args) -> Result<YoutubeDlOutput, Error> {
-    use serde_json::{json, Value};
-    use std::process::{Command, Stdio};
+#[cfg(test)]
+mod tests {
+    use super::YoutubeDl;
 
-    let process_args = args.process_args();
-    let path = args.path();
-    let output = Command::new(path)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .args(process_args)
-        .output()?;
-
-    if output.status.success() {
-        let value: Value = serde_json::from_slice(&output.stdout)?;
-        let is_playlist = value["_type"] == json!("playlist");
-        if is_playlist {
-            let playlist: Playlist = serde_json::from_value(value)?;
-            Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
-        } else {
-            let video: SingleVideo = serde_json::from_value(value)?;
-            Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
-        }
-    } else {
-        Err(Error::ExitCode(output.status.code().unwrap_or(1)))
+    #[test]
+    fn test_youtube_url() {
+        let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
+            .run()
+            .unwrap()
+            .to_single_video();
+        assert_eq!(output.id, "7XGyWcuYVrg");
     }
 }
