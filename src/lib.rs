@@ -69,22 +69,15 @@ impl From<serde_json::Error> for Error {
 }
 
 /// A builder to create a `youtube-dl` command to execute.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct YoutubeDl {
     youtube_dl_path: Option<PathBuf>,
-    /// -F
     format: Option<String>,
-    /// --socket-timeout
     socket_timeout: Option<String>,
-    /// --all-formats
     all_formats: bool,
-    /// --username + --password
     auth: Option<(String, String)>,
-    /// --user-agent
     user_agent: Option<String>,
-    /// --referer
     referer: Option<String>,
-    /// URL argument
     url: String,
 }
 
@@ -93,7 +86,13 @@ impl YoutubeDl {
     pub fn new<S: Into<String>>(url: S) -> Self {
         Self {
             url: url.into(),
-            ..Default::default()
+            youtube_dl_path: None,
+            format: None,
+            socket_timeout: None,
+            all_formats: false,
+            auth: None,
+            user_agent: None,
+            referer: None,
         }
     }
 
