@@ -1,25 +1,36 @@
+//! A crate for running and parsing the JSON output of `youtube-dl`.
+
+#![deny(
+    missing_debug_implementations,
+    missing_copy_implementations,
+    trivial_casts,
+    trivial_numeric_casts,
+    unsafe_code,
+    unstable_features,
+    unused_import_braces,
+    unused_qualifications,
+    rust_2018_idioms
+)]
+#![warn(missing_docs)]
+
 use failure::Fail;
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 pub mod model;
 
 pub use crate::model::*;
 
+/// Data returned by `YoutubeDl::run`. Output can either be a single video or a playlist of videos.
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum YoutubeDlOutput {
+    /// Playlist result
     Playlist(Box<Playlist>),
+    /// Single video result
     SingleVideo(Box<SingleVideo>),
 }
 
 impl YoutubeDlOutput {
-    #[cfg(test)]
-    fn to_playlist(self) -> Playlist {
-        match self {
-            YoutubeDlOutput::Playlist(playlist) => *playlist,
-            _ => panic!("this is a single video, not a playlist"),
-        }
-    }
-
     #[cfg(test)]
     fn to_single_video(self) -> SingleVideo {
         match self {
@@ -29,14 +40,18 @@ impl YoutubeDlOutput {
     }
 }
 
+/// Errors that can occur during executing `youtube-dl` or during parsing the output.
 #[derive(Debug, Fail)]
 pub enum Error {
+    /// I/O error
     #[fail(display = "io error: {}", _0)]
     Io(std::io::Error),
 
+    /// Error parsing JSON
     #[fail(display = "json error: {}", _0)]
     Json(serde_json::Error),
 
+    /// `youtube-dl` returned a non-zero exit code
     #[fail(display = "non-zero exit code: {}", _0)]
     ExitCode(i32),
 }
@@ -53,9 +68,10 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+/// A builder to create a `youtube-dl` command to execute.
 #[derive(Clone, Debug, Default)]
 pub struct YoutubeDl {
-    youtube_dl_path: Option<String>,
+    youtube_dl_path: Option<PathBuf>,
     /// -F
     format: Option<String>,
     /// --socket-timeout
@@ -73,6 +89,7 @@ pub struct YoutubeDl {
 }
 
 impl YoutubeDl {
+    /// Create a new builder.
     pub fn new<S: Into<String>>(url: S) -> Self {
         Self {
             url: url.into(),
@@ -80,52 +97,59 @@ impl YoutubeDl {
         }
     }
 
-    pub fn youtube_dl_path<S: Into<String>>(&mut self, youtube_dl_path: S) -> &mut Self {
-        self.youtube_dl_path = Some(youtube_dl_path.into());
+    /// Set the path to the `youtube-dl` executable.
+    pub fn youtube_dl_path<P: AsRef<Path>>(&mut self, youtube_dl_path: P) -> &mut Self {
+        self.youtube_dl_path = Some(youtube_dl_path.as_ref().to_owned());
         self
     }
 
+    /// Set the `-F` command line option.
     pub fn format<S: Into<String>>(&mut self, format: S) -> &mut Self {
         self.format = Some(format.into());
         self
     }
 
+    /// Set the `--socket-timeout` command line flag.
     pub fn socket_timeout<S: Into<String>>(&mut self, socket_timeout: S) -> &mut Self {
         self.socket_timeout = Some(socket_timeout.into());
         self
     }
 
+    /// Set the `--user-agent` command line flag.
     pub fn user_agent<S: Into<String>>(&mut self, user_agent: S) -> &mut Self {
         self.user_agent = Some(user_agent.into());
         self
     }
 
+    /// Set the `--referer` command line flag.
     pub fn referer<S: Into<String>>(&mut self, referer: S) -> &mut Self {
         self.referer = Some(referer.into());
         self
     }
 
+    /// Set the `--all-formats` command line flag.
     pub fn all_formats(&mut self, all_formats: bool) -> &mut Self {
         self.all_formats = all_formats;
         self
     }
 
-    pub fn auth<S: Into<String>>(&mut self, auth: (S, S)) -> &mut Self {
-        self.auth = Some((auth.0.into(), auth.1.into()));
+    /// Set the `-u` and `-p` command line flags.
+    pub fn auth<S: Into<String>>(&mut self, username: S, password: S) -> &mut Self {
+        self.auth = Some((username.into(), password.into()));
         self
     }
 
-    fn path(&self) -> &str {
+    fn path(&self) -> &Path {
         match &self.youtube_dl_path {
             Some(path) => path,
-            None => "youtube-dl",
+            None => Path::new("youtube-dl"),
         }
     }
 
     fn process_args(&self) -> Vec<&str> {
         let mut args = vec![];
         if let Some(format) = &self.format {
-            args.push("-f");
+            args.push("-F");
             args.push(format);
         }
 
@@ -159,6 +183,7 @@ impl YoutubeDl {
         args
     }
 
+    /// Run youtube-dl with the arguments specified through the builder.
     pub fn run(self) -> Result<YoutubeDlOutput, Error> {
         use serde_json::{json, Value};
         use std::process::{Command, Stdio};
