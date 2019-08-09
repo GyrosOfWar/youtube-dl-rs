@@ -1,22 +1,34 @@
+use failure::Fail;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 schemafy::schemafy!("schema.json");
 
 #[derive(Serialize, Debug, Deserialize)]
-#[serde(untagged)]
 pub enum YoutubeDlOutput {
     Playlist(Box<Playlist>),
     SingleVideo(Box<SingleVideo>),
 }
 
-#[derive(Debug)]
+impl YoutubeDlOutput {
+    pub fn title(&self) -> Option<&str> {
+        match self {
+            YoutubeDlOutput::Playlist(playlist) => playlist.title.as_ref().map(String::as_str),
+            YoutubeDlOutput::SingleVideo(video) => Some(&video.title),
+        }
+    }
+}
+
+#[derive(Debug, Fail)]
 pub enum Error {
+    #[fail(display = "io error: {}", _0)]
     Io(std::io::Error),
+
+    #[fail(display = "json error: {}", _0)]
     Json(serde_json::Error),
+
+    #[fail(display = "non-zero exit code: {}", _0)]
     ExitCode(i32),
-    Timeout,
-    NoOutput { stderr: Option<String> },
 }
 
 impl From<std::io::Error> for Error {
@@ -33,6 +45,7 @@ impl From<serde_json::Error> for Error {
 
 #[derive(Clone, Debug, Default)]
 pub struct Args {
+    pub youtube_dl_path: Option<String>,
     /// -F
     pub format: Option<String>,
     /// --socket-timeout
@@ -47,7 +60,6 @@ pub struct Args {
     pub referer: Option<String>,
     /// Duration after which the child process is killed
     pub child_timeout: Option<Duration>,
-
     /// URL argument
     pub url: String,
 }
@@ -60,7 +72,14 @@ impl Args {
         }
     }
 
-    pub fn process_args(&self) -> Vec<&str> {
+    fn path(&self) -> &str {
+        match &self.youtube_dl_path {
+            Some(path) => path,
+            None => "youtube-dl",
+        }
+    }
+
+    fn process_args(&self) -> Vec<&str> {
         let mut args = vec![];
         if let Some(format) = &self.format {
             args.push("-f");
@@ -98,19 +117,28 @@ impl Args {
     }
 }
 
-pub fn youtube_dl(args: Args) -> Result<YoutubeDlOutput, Error> {
+pub fn run(args: Args) -> Result<YoutubeDlOutput, Error> {
+    use serde_json::{json, Value};
     use std::process::{Command, Stdio};
 
     let process_args = args.process_args();
-    println!("running youtube-dl {}", process_args.join(" "));
-    let output = Command::new("youtube-dl")
+    let path = args.path();
+    let output = Command::new(path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .args(process_args)
         .output()?;
 
     if output.status.success() {
-        serde_json::from_slice(&output.stdout).map_err(From::from)
+        let value: Value = serde_json::from_slice(&output.stdout)?;
+        let is_playlist = value["_type"] == json!("playlist");
+        if is_playlist {
+            let playlist: Playlist = serde_json::from_value(value)?;
+            Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
+        } else {
+            let video: SingleVideo = serde_json::from_value(value)?;
+            Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
+        }
     } else {
         Err(Error::ExitCode(output.status.code().unwrap_or(1)))
     }
