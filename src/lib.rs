@@ -183,7 +183,7 @@ impl YoutubeDl {
     }
 
     /// Run youtube-dl with the arguments specified through the builder.
-    pub fn run(self) -> Result<YoutubeDlOutput, Error> {
+    pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
         use serde_json::{json, Value};
         use std::process::{Command, Stdio};
 
@@ -219,6 +219,7 @@ mod tests {
     #[test]
     fn test_youtube_url() {
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
+            .socket_timeout("15")
             .run()
             .unwrap()
             .to_single_video();
