@@ -35,7 +35,7 @@ pub struct Format {
     pub format: Option<String>,
     pub format_id: Option<String>,
     pub format_note: Option<String>,
-    pub fps: Option<i64>,
+    pub fps: Option<f64>,
     pub fragment_base_url: Option<String>,
     pub fragments: Option<Vec<Fragment>>,
     pub height: Option<i64>,
