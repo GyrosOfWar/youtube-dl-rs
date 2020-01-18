@@ -16,6 +16,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::error::Error as StdError;
 
 pub mod model;
 
@@ -71,6 +72,16 @@ impl fmt::Display for Error {
             Self::Io(err) => write!(f, "io error: {}", err),
             Self::Json(err) => write!(f, "json error: {}", err),
             Self::ExitCode(err) => write!(f, "non-zero exit code: {}", err),
+        }
+    }
+}
+
+impl StdError for Error {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Self::Io(err) => Some(err),
+            Self::Json(err) => Some(err),
+            Self::ExitCode(_) => None,
         }
     }
 }
