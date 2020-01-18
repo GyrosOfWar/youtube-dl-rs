@@ -13,8 +13,8 @@
 )]
 #![warn(missing_docs)]
 
-use failure::Fail;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 pub mod model;
@@ -41,18 +41,15 @@ impl YoutubeDlOutput {
 }
 
 /// Errors that can occur during executing `youtube-dl` or during parsing the output.
-#[derive(Debug, Fail)]
+#[derive(Debug)]
 pub enum Error {
     /// I/O error
-    #[fail(display = "io error: {}", _0)]
     Io(std::io::Error),
 
     /// Error parsing JSON
-    #[fail(display = "json error: {}", _0)]
     Json(serde_json::Error),
 
     /// `youtube-dl` returned a non-zero exit code
-    #[fail(display = "non-zero exit code: {}", _0)]
     ExitCode(i32),
 }
 
@@ -65,6 +62,16 @@ impl From<std::io::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
         Error::Json(err)
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(err) => write!(f, "io error: {}", err),
+            Self::Json(err) => write!(f, "json error: {}", err),
+            Self::ExitCode(err) => write!(f, "non-zero exit code: {}", err),
+        }
     }
 }
 
