@@ -14,9 +14,9 @@
 #![warn(missing_docs)]
 
 use serde::{Deserialize, Serialize};
+use std::error::Error as StdError;
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::error::Error as StdError;
 
 pub mod model;
 
@@ -51,7 +51,12 @@ pub enum Error {
     Json(serde_json::Error),
 
     /// `youtube-dl` returned a non-zero exit code
-    ExitCode(i32),
+    ExitCode {
+        /// Exit code
+        code: i32,
+        /// Standard error of youtube-dl
+        stderr: String,
+    },
 }
 
 impl From<std::io::Error> for Error {
@@ -71,7 +76,9 @@ impl fmt::Display for Error {
         match self {
             Self::Io(err) => write!(f, "io error: {}", err),
             Self::Json(err) => write!(f, "json error: {}", err),
-            Self::ExitCode(err) => write!(f, "non-zero exit code: {}", err),
+            Self::ExitCode { code, stderr } => {
+                write!(f, "non-zero exit code: {}, stderr: {}", code, stderr)
+            }
         }
     }
 }
@@ -81,7 +88,7 @@ impl StdError for Error {
         match self {
             Self::Io(err) => Some(err),
             Self::Json(err) => Some(err),
-            Self::ExitCode(_) => None,
+            Self::ExitCode { .. } => None,
         }
     }
 }
@@ -166,7 +173,7 @@ impl YoutubeDl {
     fn process_args(&self) -> Vec<&str> {
         let mut args = vec![];
         if let Some(format) = &self.format {
-            args.push("-F");
+            args.push("-f");
             args.push(format);
         }
 
@@ -197,6 +204,8 @@ impl YoutubeDl {
         }
         args.push("-J");
         args.push(&self.url);
+        log::debug!("youtube-dl arguments: {:?}", args);
+
         args
     }
 
@@ -225,7 +234,11 @@ impl YoutubeDl {
                 Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
             }
         } else {
-            Err(Error::ExitCode(output.status.code().unwrap_or(1)))
+            let stderr = String::from_utf8(output.stderr).unwrap_or_default();
+            Err(Error::ExitCode {
+                code: output.status.code().unwrap_or(1),
+                stderr,
+            })
         }
     }
 }
