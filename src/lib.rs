@@ -58,13 +58,13 @@ pub enum YoutubeDlExtractMode {
     Id,
     /// Extract thumbnail url (--get-thumbnail)
     Thumbnail,
-    /// Extract (--get-description)
+    /// Extract description (--get-description)
     Description,
-    /// Extract (--get-duration)
+    /// Extract duration (--get-duration)
     Duration,
-    /// Extract (--get-filename)
+    /// Extract filename (--get-filename)
     Filename,
-    /// Extract (--get-format)
+    /// Extract format (--get-format)
     Format,
 }
 
