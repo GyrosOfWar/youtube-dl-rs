@@ -14,6 +14,7 @@
 #![warn(missing_docs)]
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::error::Error as StdError;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -41,11 +42,40 @@ impl YoutubeDlOutput {
     }
 }
 
+/// Tells youtube-dl what to extract from the url
+/// As to what they do, refer to `man youtube-dl`
+#[derive(Clone, Copy, Debug)]
+pub enum YoutubeDlExtractMode {
+    /// Extract json (-J)
+    JSONSingle,
+    /// Dump json (-j)
+    JSONDump,
+    /// Extract download url (-g)
+    Url,
+    /// Extract title (-e)
+    Title,
+    /// Extract id (--get-id)
+    Id,
+    /// Extract thumbnail url (--get-thumbnail)
+    Thumbnail,
+    /// Extract (--get-description)
+    Description,
+    /// Extract (--get-duration)
+    Duration,
+    /// Extract (--get-filename)
+    Filename,
+    /// Extract (--get-format)
+    Format,
+}
+
 /// Errors that can occur during executing `youtube-dl` or during parsing the output.
 #[derive(Debug)]
 pub enum Error {
     /// I/O error
     Io(std::io::Error),
+
+    /// Error parsing text output
+    Utf8(std::string::FromUtf8Error),
 
     /// Error parsing JSON
     Json(serde_json::Error),
@@ -65,6 +95,12 @@ impl From<std::io::Error> for Error {
     }
 }
 
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(err: std::string::FromUtf8Error) -> Self {
+        Error::Utf8(err)
+    }
+}
+
 impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
         Error::Json(err)
@@ -75,6 +111,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(err) => write!(f, "io error: {}", err),
+            Self::Utf8(err) => write!(f, "utf8 error: {}", err),
             Self::Json(err) => write!(f, "json error: {}", err),
             Self::ExitCode { code, stderr } => {
                 write!(f, "non-zero exit code: {}, stderr: {}", code, stderr)
@@ -87,6 +124,7 @@ impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Self::Io(err) => Some(err),
+            Self::Utf8(err) => Some(err),
             Self::Json(err) => Some(err),
             Self::ExitCode { .. } => None,
         }
@@ -170,7 +208,7 @@ impl YoutubeDl {
         }
     }
 
-    fn process_args(&self) -> Vec<&str> {
+    fn process_args(&self, mode: &YoutubeDlExtractMode) -> Vec<&str> {
         let mut args = vec![];
         if let Some(format) = &self.format {
             args.push("-f");
@@ -202,36 +240,50 @@ impl YoutubeDl {
             args.push("--referer");
             args.push(referer);
         }
-        args.push("-J");
+        
+        use YoutubeDlExtractMode::*;
+        let extract_arg = match mode {
+            JSONSingle  => "-J",
+            JSONDump    => "-j",
+            Url         => "-g",
+            Title       => "-e",
+            Id          => "--get-id",
+            Thumbnail   => "--get-thumbnail",
+            Description => "--get-description",
+            Duration    => "--get-duration",
+            Filename    => "--get-filename",
+            Format      => "--get-format"
+        };
+        args.push(extract_arg);
         args.push(&self.url);
         log::debug!("youtube-dl arguments: {:?}", args);
 
         args
     }
-
-    /// Run youtube-dl with the arguments specified through the builder.
-    pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
-        use serde_json::{json, Value};
+    
+    /// Run youtube-dl recovering a string from the output
+    /// Outputs multiple lines for multiple entries in a playlist
+    pub fn extract_str(&self, mode: &YoutubeDlExtractMode) -> Result<Vec<String>, Error> {
         use std::process::{Command, Stdio};
 
-        let process_args = self.process_args();
+        let process_args = self.process_args(mode);
         let path = self.path();
         let output = Command::new(path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .args(process_args)
             .output()?;
-
+        
         if output.status.success() {
-            let value: Value = serde_json::from_slice(&output.stdout)?;
-
-            let is_playlist = value["_type"] == json!("playlist");
-            if is_playlist {
-                let playlist: Playlist = serde_json::from_value(value)?;
-                Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
-            } else {
-                let video: SingleVideo = serde_json::from_value(value)?;
-                Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
+            let value = String::from_utf8(output.stdout)?;
+            
+            use YoutubeDlExtractMode::*;
+            match &mode {
+                JSONSingle => Ok(vec![value]),
+                _ => {
+                    let lines: Vec<_> = value.lines().map(|s| s.to_string()).collect();
+                    Ok(lines)
+                }
             }
         } else {
             let stderr = String::from_utf8(output.stderr).unwrap_or_default();
@@ -240,6 +292,40 @@ impl YoutubeDl {
                 stderr,
             })
         }
+    }
+
+    /// Extract full json from youtube-dl then parse it
+    pub fn extract_json_single(&self) -> Result<Value, Error> {
+        let output = self.extract_str(&YoutubeDlExtractMode::JSONSingle)?;
+        serde_json::from_str(&output[0]).map_err(|e| e.into())
+    }
+    
+    /// Extract templated JSON from youtube-dl then parse it
+    pub fn extract_json_dump(&self) -> Result<Value, Error> {
+        let output = self.extract_str(&YoutubeDlExtractMode::JSONDump)?;
+        serde_json::from_str(&output[0]).map_err(|e| e.into())
+    }
+    
+    /// Extract full json from youtube-dl then serialize it into a YoutubeDlOutput
+    pub fn extract_full(&self) -> Result<YoutubeDlOutput, Error> {
+        use serde_json::json;
+        
+        let value = self.extract_json_single()?;
+        let is_playlist = value["_type"] == json!("playlist");
+        if is_playlist {
+            let playlist: Playlist = serde_json::from_value(value)?;
+            Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
+        } else {
+            let video: SingleVideo = serde_json::from_value(value)?;
+            Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
+        }
+        
+    }
+
+    /// Run youtube-dl with the arguments specified through the builder
+    /// Deprecated by extract_full, but kept here for api compatibility
+    pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
+        self.extract_full()
     }
 }
 
