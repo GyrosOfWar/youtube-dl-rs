@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::error::Error as StdError;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 pub mod model;
 
@@ -57,6 +58,9 @@ pub enum Error {
         /// Standard error of youtube-dl
         stderr: String,
     },
+
+    /// Process-level timeout expired.
+    ProcessTimeout,
 }
 
 impl From<std::io::Error> for Error {
@@ -79,6 +83,7 @@ impl fmt::Display for Error {
             Self::ExitCode { code, stderr } => {
                 write!(f, "non-zero exit code: {}, stderr: {}", code, stderr)
             }
+            Self::ProcessTimeout => write!(f, "process timed out"),
         }
     }
 }
@@ -89,6 +94,7 @@ impl StdError for Error {
             Self::Io(err) => Some(err),
             Self::Json(err) => Some(err),
             Self::ExitCode { .. } => None,
+            Self::ProcessTimeout => None,
         }
     }
 }
@@ -104,6 +110,7 @@ pub struct YoutubeDl {
     user_agent: Option<String>,
     referer: Option<String>,
     url: String,
+    process_timeout: Option<Duration>,
 }
 
 impl YoutubeDl {
@@ -118,6 +125,7 @@ impl YoutubeDl {
             auth: None,
             user_agent: None,
             referer: None,
+            process_timeout: None,
         }
     }
 
@@ -160,6 +168,13 @@ impl YoutubeDl {
     /// Set the `-u` and `-p` command line flags.
     pub fn auth<S: Into<String>>(&mut self, username: S, password: S) -> &mut Self {
         self.auth = Some((username.into(), password.into()));
+        self
+    }
+
+    /// Set a process-level timeout for youtube-dl. (this controls the maximum overall duration
+    /// the process may take, when it times out, `Error::ProcessTimeout` is returned)
+    pub fn process_timeout(&mut self, timeout: Duration) -> &mut Self {
+        self.process_timeout = Some(timeout);
         self
     }
 
@@ -212,18 +227,32 @@ impl YoutubeDl {
     /// Run youtube-dl with the arguments specified through the builder.
     pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
         use serde_json::{json, Value};
+        use std::io::Read;
         use std::process::{Command, Stdio};
+        use wait_timeout::ChildExt;
 
         let process_args = self.process_args();
         let path = self.path();
-        let output = Command::new(path)
+        let mut child = Command::new(path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .args(process_args)
-            .output()?;
+            .spawn()?;
+        let exit_code = if let Some(timeout) = self.process_timeout {
+            match child.wait_timeout(timeout)? {
+                Some(status) => status,
+                None => {
+                    child.kill()?;
+                    return Err(Error::ProcessTimeout);
+                }
+            }
+        } else {
+            child.wait()?
+        };
 
-        if output.status.success() {
-            let value: Value = serde_json::from_slice(&output.stdout)?;
+        if exit_code.success() {
+            let stdout = child.stdout.unwrap();
+            let value: Value = serde_json::from_reader(stdout)?;
 
             let is_playlist = value["_type"] == json!("playlist");
             if is_playlist {
@@ -234,9 +263,13 @@ impl YoutubeDl {
                 Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
             }
         } else {
-            let stderr = String::from_utf8(output.stderr).unwrap_or_default();
+            let mut stderr = vec![];
+            if let Some(mut reader) = child.stderr {
+                reader.read_to_end(&mut stderr)?;
+            }
+            let stderr = String::from_utf8(stderr).unwrap_or_default();
             Err(Error::ExitCode {
-                code: output.status.code().unwrap_or(1),
+                code: exit_code.code().unwrap_or(1),
                 stderr,
             })
         }
@@ -246,6 +279,7 @@ impl YoutubeDl {
 #[cfg(test)]
 mod tests {
     use super::YoutubeDl;
+    use std::time::Duration;
 
     #[test]
     fn test_youtube_url() {
@@ -255,5 +289,25 @@ mod tests {
             .unwrap()
             .to_single_video();
         assert_eq!(output.id, "7XGyWcuYVrg");
+    }
+
+    #[test]
+    fn test_with_timeout() {
+        let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
+            .socket_timeout("15")
+            .process_timeout(Duration::from_secs(15))
+            .run()
+            .unwrap()
+            .to_single_video();
+        assert_eq!(output.id, "7XGyWcuYVrg");
+    }
+
+    #[test]
+    fn test_unknown_url() {
+        YoutubeDl::new("https://www.rust-lang.org")
+            .socket_timeout("15")
+            .process_timeout(Duration::from_secs(15))
+            .run()
+            .unwrap_err();
     }
 }
