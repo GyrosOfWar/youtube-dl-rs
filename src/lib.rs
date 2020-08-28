@@ -238,6 +238,13 @@ impl YoutubeDl {
             .stderr(Stdio::piped())
             .args(process_args)
             .spawn()?;
+
+        // Continually read from stdout so that it does not fill up with large output and hang forever.
+        // We don't need to do this for stderr since only stdout has potentially giant JSON.
+        let mut stdout = Vec::new();
+        let child_stdout = child.stdout.take();
+        std::io::copy(&mut child_stdout.unwrap(), &mut stdout)?;
+
         let exit_code = if let Some(timeout) = self.process_timeout {
             match child.wait_timeout(timeout)? {
                 Some(status) => status,
@@ -251,8 +258,7 @@ impl YoutubeDl {
         };
 
         if exit_code.success() {
-            let stdout = child.stdout.unwrap();
-            let value: Value = serde_json::from_reader(stdout)?;
+            let value: Value = serde_json::from_reader(stdout.as_slice())?;
 
             let is_playlist = value["_type"] == json!("playlist");
             if is_playlist {
