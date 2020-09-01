@@ -104,6 +104,7 @@ impl StdError for Error {
 pub struct YoutubeDl {
     youtube_dl_path: Option<PathBuf>,
     format: Option<String>,
+    flat_playlist: bool,
     socket_timeout: Option<String>,
     all_formats: bool,
     auth: Option<(String, String)>,
@@ -120,6 +121,7 @@ impl YoutubeDl {
             url: url.into(),
             youtube_dl_path: None,
             format: None,
+            flat_playlist: false,
             socket_timeout: None,
             all_formats: false,
             auth: None,
@@ -138,6 +140,12 @@ impl YoutubeDl {
     /// Set the `-F` command line option.
     pub fn format<S: Into<String>>(&mut self, format: S) -> &mut Self {
         self.format = Some(format.into());
+        self
+    }
+
+    /// Set the `--flat-playlist` command line flag.
+    pub fn flat_playlist(&mut self, flat_playlist: bool) -> &mut Self {
+        self.flat_playlist = flat_playlist;
         self
     }
 
@@ -190,6 +198,10 @@ impl YoutubeDl {
         if let Some(format) = &self.format {
             args.push("-f");
             args.push(format);
+        }
+
+        if self.flat_playlist {
+            args.push("--flat-playlist");
         }
 
         if let Some(timeout) = &self.socket_timeout {
