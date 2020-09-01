@@ -4,14 +4,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Chapter {
     pub end_time: Option<f64>,
     pub start_time: Option<f64>,
     pub title: Option<String>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Comment {
     pub author: Option<String>,
     pub author_id: Option<String>,
@@ -22,7 +22,7 @@ pub struct Comment {
     pub timestamp: Option<i64>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Format {
     pub abr: Option<f64>,
     pub acodec: Option<String>,
@@ -58,7 +58,7 @@ pub struct Format {
     pub width: Option<i64>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Fragment {
     pub duration: Option<Value>,
     pub filesize: Option<i64>,
@@ -66,7 +66,7 @@ pub struct Fragment {
     pub url: Option<String>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct JsonOutput {
     pub age_limit: Option<i64>,
     pub album: Option<String>,
@@ -137,7 +137,7 @@ pub struct JsonOutput {
     pub webpage_url: Option<String>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Playlist {
     pub entries: Option<Vec<SingleVideo>>,
     pub extractor: Option<String>,
@@ -151,7 +151,7 @@ pub struct Playlist {
     pub webpage_url_basename: Option<String>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct SingleVideo {
     pub abr: Option<f64>,
     pub acodec: Option<String>,
@@ -254,14 +254,14 @@ pub struct SingleVideo {
     pub width: Option<i64>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Subtitle {
     pub data: Option<String>,
     pub ext: Option<String>,
     pub url: Option<String>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Thumbnail {
     pub filesize: Option<i64>,
     pub height: Option<i64>,
