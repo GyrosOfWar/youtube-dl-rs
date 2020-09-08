@@ -40,6 +40,13 @@ impl YoutubeDlOutput {
             _ => panic!("this is a playlist, not a single video"),
         }
     }
+    #[cfg(test)]
+    fn to_playlist(self) -> Playlist {
+        match self {
+            YoutubeDlOutput::Playlist(playlist) => *playlist,
+            _ => panic!("this is a playlist, not a single video"),
+        }
+    }
 }
 
 /// Errors that can occur during executing `youtube-dl` or during parsing the output.
@@ -110,15 +117,22 @@ pub struct YoutubeDl {
     auth: Option<(String, String)>,
     user_agent: Option<String>,
     referer: Option<String>,
-    url: String,
+    query: String,
     process_timeout: Option<Duration>,
+}
+
+fn query_transform(query: String) -> String {
+    if !query.starts_with("http") {
+        return format!(r#"ytsearch1:{}"#, query);
+    }
+    query
 }
 
 impl YoutubeDl {
     /// Create a new builder.
-    pub fn new<S: Into<String>>(url: S) -> Self {
+    pub fn new<S: Into<String>>(query: S) -> Self {
         Self {
-            url: url.into(),
+            query: query_transform(query.into()),
             youtube_dl_path: None,
             format: None,
             flat_playlist: false,
@@ -230,7 +244,7 @@ impl YoutubeDl {
             args.push(referer);
         }
         args.push("-J");
-        args.push(&self.url);
+        args.push(&self.query);
         log::debug!("youtube-dl arguments: {:?}", args);
 
         args
@@ -327,5 +341,16 @@ mod tests {
             .process_timeout(Duration::from_secs(15))
             .run()
             .unwrap_err();
+    }
+
+    #[test]
+    fn test_search() {
+        let output = YoutubeDl::new("Never Gonna Give You Up")
+            .socket_timeout("15")
+            .process_timeout(Duration::from_secs(15))
+            .run()
+            .unwrap()
+            .to_playlist();
+        assert_eq!(output.entries.unwrap().first().unwrap().id, "dQw4w9WgXcQ");
     }
 }
