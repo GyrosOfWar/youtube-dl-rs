@@ -106,6 +106,94 @@ impl StdError for Error {
     }
 }
 
+/// The search options currently supported by youtube-dl, and a custom option to allow
+/// specifying custom options, in case this library is outdated.
+#[derive(Clone, Debug)]
+pub enum SearchType {
+    Youtube,
+    Yahoo,
+    Google,
+    SoundCloud,
+    /// Allows to specify a custom search type, for forwards compatibility purposes.
+    Custom(String),
+}
+
+impl fmt::Display for SearchType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SearchType::Yahoo => write!(f, "yvsearch"),
+            SearchType::Youtube => write!(f, "ytsearch"),
+            SearchType::Google => write!(f, "gvsearch"),
+            SearchType::SoundCloud => write!(f, "scsearch"),
+            SearchType::Custom(name) => write!(f, "{}", name),
+        }
+    }
+}
+
+/// Specifies where to search, how many results to fetch and the query.
+#[derive(Clone, Debug)]
+pub struct SearchOptions {
+    search_type: SearchType,
+    count: usize,
+    query: String,
+}
+
+impl SearchOptions {
+    pub fn youtube(query: impl Into<String>) -> Self {
+        Self {
+            query: query.into(),
+            search_type: SearchType::Youtube,
+            count: 1,
+        }
+    }
+
+    pub fn google(query: impl Into<String>) -> Self {
+        Self {
+            query: query.into(),
+            search_type: SearchType::Google,
+            count: 1,
+        }
+    }
+
+    pub fn yahoo(query: impl Into<String>) -> Self {
+        Self {
+            query: query.into(),
+            search_type: SearchType::Yahoo,
+            count: 1,
+        }
+    }
+
+    pub fn soundcloud(query: impl Into<String>) -> Self {
+        Self {
+            query: query.into(),
+            search_type: SearchType::SoundCloud,
+            count: 1,
+        }
+    }
+
+    pub fn custom(search_type: impl Into<String>, query: impl Into<String>) -> Self {
+        Self {
+            query: query.into(),
+            search_type: SearchType::Custom(search_type.into()),
+            count: 1,
+        }
+    }
+
+    pub fn with_count(self, count: usize) -> Self {
+        Self {
+            search_type: self.search_type,
+            query: self.query,
+            count,
+        }
+    }
+}
+
+impl fmt::Display for SearchOptions {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}:{}", self.search_type, self.count, self.query)
+    }
+}
+
 /// A builder to create a `youtube-dl` command to execute.
 #[derive(Clone, Debug)]
 pub struct YoutubeDl {
@@ -117,22 +205,15 @@ pub struct YoutubeDl {
     auth: Option<(String, String)>,
     user_agent: Option<String>,
     referer: Option<String>,
-    query: String,
+    url: String,
     process_timeout: Option<Duration>,
-}
-
-fn query_transform(query: String) -> String {
-    if !query.starts_with("http") {
-        return format!(r#"ytsearch1:{}"#, query);
-    }
-    query
 }
 
 impl YoutubeDl {
     /// Create a new builder.
-    pub fn new<S: Into<String>>(query: S) -> Self {
+    pub fn new(url: impl Into<String>) -> Self {
         Self {
-            query: query_transform(query.into()),
+            url: url.into(),
             youtube_dl_path: None,
             format: None,
             flat_playlist: false,
@@ -143,6 +224,11 @@ impl YoutubeDl {
             referer: None,
             process_timeout: None,
         }
+    }
+
+    /// Performs a search with the given search options.
+    pub fn search_for(options: &SearchOptions) -> Self {
+        Self::new(options.to_string())
     }
 
     /// Set the path to the `youtube-dl` executable.
@@ -244,7 +330,7 @@ impl YoutubeDl {
             args.push(referer);
         }
         args.push("-J");
-        args.push(&self.query);
+        args.push(&self.url);
         log::debug!("youtube-dl arguments: {:?}", args);
 
         args
@@ -310,7 +396,7 @@ impl YoutubeDl {
 
 #[cfg(test)]
 mod tests {
-    use super::YoutubeDl;
+    use crate::{SearchOptions, YoutubeDl};
     use std::time::Duration;
 
     #[test]
@@ -345,7 +431,7 @@ mod tests {
 
     #[test]
     fn test_search() {
-        let output = YoutubeDl::new("Never Gonna Give You Up")
+        let output = YoutubeDl::search_for(&SearchOptions::youtube("Never Gonna Give You Up"))
             .socket_timeout("15")
             .process_timeout(Duration::from_secs(15))
             .run()
