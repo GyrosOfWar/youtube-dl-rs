@@ -1,3 +1,6 @@
+//! Structs to represent the output of youtube-dl.
+//! The definitions in this module are mostly auto-generated from the JSON output format of youtube-dl.
+
 #![allow(missing_docs)]
 
 use serde::{Deserialize, Serialize};

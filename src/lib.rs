@@ -1,4 +1,14 @@
+//! # youtube_dl
 //! A crate for running and parsing the JSON output of `youtube-dl`.
+//! Example usage:
+//! ```rust
+//! use youtube_dl::YoutubeDl;
+
+//! let output = YoutubeDl::new("https://www.youtube.com/watch?v=VFbhKZFzbzk")
+//!   .socket_timeout("15")
+//!   .run()
+//!   .unwrap();
+//! ```
 
 #![deny(
     missing_debug_implementations,
@@ -110,9 +120,13 @@ impl StdError for Error {
 /// specifying custom options, in case this library is outdated.
 #[derive(Clone, Debug)]
 pub enum SearchType {
+    /// Search on youtube.com
     Youtube,
+    /// Search with yahoo.com's video search
     Yahoo,
+    /// Search with Google's video search
     Google,
+    /// Search on SoundCloud
     SoundCloud,
     /// Allows to specify a custom search type, for forwards compatibility purposes.
     Custom(String),
@@ -130,7 +144,8 @@ impl fmt::Display for SearchType {
     }
 }
 
-/// Specifies where to search, how many results to fetch and the query.
+/// Specifies where to search, how many results to fetch and the query. The count
+/// defaults to 1, but can be changed with the `with_count` method.
 #[derive(Clone, Debug)]
 pub struct SearchOptions {
     search_type: SearchType,
@@ -139,6 +154,7 @@ pub struct SearchOptions {
 }
 
 impl SearchOptions {
+    /// Search on youtube.com
     pub fn youtube(query: impl Into<String>) -> Self {
         Self {
             query: query.into(),
@@ -146,7 +162,7 @@ impl SearchOptions {
             count: 1,
         }
     }
-
+    /// Search with Google's video search
     pub fn google(query: impl Into<String>) -> Self {
         Self {
             query: query.into(),
@@ -154,7 +170,7 @@ impl SearchOptions {
             count: 1,
         }
     }
-
+    /// Search with yahoo.com's video search
     pub fn yahoo(query: impl Into<String>) -> Self {
         Self {
             query: query.into(),
@@ -162,7 +178,7 @@ impl SearchOptions {
             count: 1,
         }
     }
-
+    /// Search on SoundCloud
     pub fn soundcloud(query: impl Into<String>) -> Self {
         Self {
             query: query.into(),
@@ -170,7 +186,7 @@ impl SearchOptions {
             count: 1,
         }
     }
-
+    /// Search with a custom search provider (in case this library falls behind the feature set of youtube-dl)
     pub fn custom(search_type: impl Into<String>, query: impl Into<String>) -> Self {
         Self {
             query: query.into(),
@@ -178,7 +194,7 @@ impl SearchOptions {
             count: 1,
         }
     }
-
+    /// Set the count for how many videos at most to retrieve from the search.
     pub fn with_count(self, count: usize) -> Self {
         Self {
             search_type: self.search_type,
