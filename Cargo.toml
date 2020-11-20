@@ -1,6 +1,6 @@
 [package]
 name = "youtube_dl"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Martin Tomasi <martin.tomasi@gmail.com>"]
 edition = "2018"
 description = "Runs youtube-dl and parses its JSON output."
