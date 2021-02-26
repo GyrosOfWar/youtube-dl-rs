@@ -223,6 +223,7 @@ pub struct YoutubeDl {
     referer: Option<String>,
     url: String,
     process_timeout: Option<Duration>,
+    extract_audio: bool,
 }
 
 impl YoutubeDl {
@@ -239,6 +240,7 @@ impl YoutubeDl {
             user_agent: None,
             referer: None,
             process_timeout: None,
+            extract_audio: false,
         }
     }
 
@@ -302,6 +304,12 @@ impl YoutubeDl {
         self
     }
 
+    /// Set the `--extract-audio` command line flag.
+    pub fn extract_audio(&mut self, extract_audio: bool) -> &mut Self {
+        self.extract_audio = extract_audio;
+        self
+    }
+
     fn path(&self) -> &Path {
         match &self.youtube_dl_path {
             Some(path) => path,
@@ -345,6 +353,11 @@ impl YoutubeDl {
             args.push("--referer");
             args.push(referer);
         }
+
+        if self.extract_audio {
+            args.push("--extract-audio");
+        }
+
         args.push("-J");
         args.push(&self.url);
         log::debug!("youtube-dl arguments: {:?}", args);
