@@ -468,4 +468,14 @@ mod tests {
             .to_playlist();
         assert_eq!(output.entries.unwrap().first().unwrap().id, "dQw4w9WgXcQ");
     }
+
+    #[test]
+    fn test_video_with_season() {
+        let output = YoutubeDl::new("https://youtube.com/watch?v=sAD1nayZ9dk")
+            .run()
+            .unwrap()
+            .to_single_video();
+
+        assert_eq!(output.season_number, Some(2));
+    }
 }
