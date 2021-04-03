@@ -28,6 +28,7 @@ pub struct Comment {
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Format {
     pub abr: Option<f64>,
+    #[serde(deserialize_with = "parse_codec")]
     pub acodec: Option<String>,
     pub asr: Option<f64>,
     pub container: Option<String>,
@@ -57,8 +58,22 @@ pub struct Format {
     pub tbr: Option<f64>,
     pub url: Option<String>,
     pub vbr: Option<f64>,
+    #[serde(deserialize_with = "parse_codec")]
     pub vcodec: Option<String>,
     pub width: Option<i64>,
+}
+
+// Codec values are set explicitly, and when there is no codec, it is given as "none".
+// Default decoding in this case would result in `Some("none".to_string())`, which is why
+// this custom parse function exists.
+fn parse_codec<'de, D>(d: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    serde::de::Deserialize::deserialize(d).map(|x: Option<_>| match x.unwrap_or_default() {
+        Some(ref s) if s == "none" => None,
+        x => x,
+    })
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
