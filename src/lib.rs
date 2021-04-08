@@ -478,4 +478,22 @@ mod tests {
 
         assert_eq!(output.season_number, Some(2));
     }
+
+    #[test]
+    fn correct_format_codec_parsing() {
+        let output = YoutubeDl::new("https://www.youtube.com/watch?v=WhWc3b3KhnY")
+            .run()
+            .unwrap()
+            .to_single_video();
+
+        let mut none_counter = 0;
+        for format in output.formats.unwrap() {
+            assert_ne!(Some("none".to_string()), format.acodec);
+            assert_ne!(Some("none".to_string()), format.vcodec);
+            if format.acodec.is_none() || format.vcodec.is_none() {
+                none_counter += 1;
+            }
+        }
+        assert!(none_counter > 0);
+    }
 }
