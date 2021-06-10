@@ -34,7 +34,7 @@ pub struct Format {
     pub container: Option<String>,
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub ext: Option<String>,
-    pub filesize: Option<i64>,
+    pub filesize: Option<f64>,
     pub filesize_approx: Option<String>,
     pub format: Option<String>,
     pub format_id: Option<String>,
