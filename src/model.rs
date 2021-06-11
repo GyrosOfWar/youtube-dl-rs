@@ -28,8 +28,7 @@ pub struct Comment {
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Format {
     pub abr: Option<f64>,
-    #[serde(default)]
-    #[serde(deserialize_with = "parse_codec")]
+    #[serde(default, deserialize_with = "parse_codec")]
     pub acodec: Option<String>,
     pub asr: Option<f64>,
     pub container: Option<String>,
@@ -59,8 +58,7 @@ pub struct Format {
     pub tbr: Option<f64>,
     pub url: Option<String>,
     pub vbr: Option<f64>,
-    #[serde(default)]
-    #[serde(deserialize_with = "parse_codec")]
+    #[serde(default, deserialize_with = "parse_codec")]
     pub vcodec: Option<String>,
     pub width: Option<i64>,
 }
