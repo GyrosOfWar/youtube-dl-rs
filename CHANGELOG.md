@@ -1,3 +1,6 @@
+# 0.6.3
+- Added cookies + custom args settings
+
 # 0.6.2
 - Allow missing `acodec`/`vcodec` fields.
 - Added custom parser for format codec fields
