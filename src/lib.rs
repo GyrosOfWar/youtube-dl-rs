@@ -219,11 +219,13 @@ pub struct YoutubeDl {
     socket_timeout: Option<String>,
     all_formats: bool,
     auth: Option<(String, String)>,
+    cookies: Option<String>,
     user_agent: Option<String>,
     referer: Option<String>,
     url: String,
     process_timeout: Option<Duration>,
     extract_audio: bool,
+    extra_args: Vec<String>,
 }
 
 impl YoutubeDl {
@@ -237,10 +239,12 @@ impl YoutubeDl {
             socket_timeout: None,
             all_formats: false,
             auth: None,
+            cookies: None,
             user_agent: None,
             referer: None,
             process_timeout: None,
             extract_audio: false,
+            extra_args: Vec::new(),
         }
     }
 
@@ -297,6 +301,12 @@ impl YoutubeDl {
         self
     }
 
+    /// Specify a file with cookies in Netscape cookie format.
+    pub fn cookies<S: Into<String>>(&mut self, cookie_path: S) -> &mut Self {
+        self.cookies = Some(cookie_path.into());
+        self
+    }
+
     /// Set a process-level timeout for youtube-dl. (this controls the maximum overall duration
     /// the process may take, when it times out, `Error::ProcessTimeout` is returned)
     pub fn process_timeout(&mut self, timeout: Duration) -> &mut Self {
@@ -307,6 +317,15 @@ impl YoutubeDl {
     /// Set the `--extract-audio` command line flag.
     pub fn extract_audio(&mut self, extract_audio: bool) -> &mut Self {
         self.extract_audio = extract_audio;
+        self
+    }
+
+    /// Add an additional custom CLI argument.
+    ///
+    /// This allows specifying arguments that are not covered by other
+    /// configuration methods.
+    pub fn extra_arg<S: Into<String>>(&mut self, arg: S) -> &mut Self {
+        self.extra_args.push(arg.into());
         self
     }
 
@@ -344,6 +363,11 @@ impl YoutubeDl {
             args.push(password);
         }
 
+        if let Some(cookie_path) = &self.cookies {
+            args.push("--cookies");
+            args.push(cookie_path);
+        }
+
         if let Some(user_agent) = &self.user_agent {
             args.push("--user-agent");
             args.push(user_agent);
@@ -356,6 +380,10 @@ impl YoutubeDl {
 
         if self.extract_audio {
             args.push("--extract-audio");
+        }
+
+        for extra_arg in &self.extra_args {
+            args.push(extra_arg);
         }
 
         args.push("-J");
