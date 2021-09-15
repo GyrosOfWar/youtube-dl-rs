@@ -259,7 +259,7 @@ impl YoutubeDl {
         self
     }
 
-    /// Set the `-F` command line option.
+    /// Set the `-f` command line option.
     pub fn format<S: Into<String>>(&mut self, format: S) -> &mut Self {
         self.format = Some(format.into());
         self
