@@ -393,6 +393,63 @@ impl YoutubeDl {
         args
     }
 
+    pub async fn run_async(&self) -> Result<YoutubeDlOutput, Error> {
+        use serde_json::{json, Value};
+        use std::process::Stdio;
+        use tokio::io::AsyncReadExt;
+        use tokio::process::Command;
+        use tokio::time::timeout;
+
+        let process_args = self.process_args();
+        let path = self.path();
+        let mut child = Command::new(path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .args(process_args)
+            .spawn()?;
+
+        // Continually read from stdout so that it does not fill up with large output and hang forever.
+        // We don't need to do this for stderr since only stdout has potentially giant JSON.
+        let mut stdout = Vec::new();
+        let child_stdout = child.stdout.take();
+        tokio::io::copy(&mut child_stdout.unwrap(), &mut stdout).await?;
+
+        let exit_code = if let Some(dur) = self.process_timeout {
+            match timeout(dur, child.wait()).await {
+                Ok(n) => n?,
+                Err(_) => {
+                    child.kill().await?;
+                    return Err(Error::ProcessTimeout);
+                }
+            }
+        } else {
+            child.wait().await?
+        };
+
+        if exit_code.success() {
+            let value: Value = serde_json::from_reader(stdout.as_slice())?;
+
+            let is_playlist = value["_type"] == json!("playlist");
+            if is_playlist {
+                let playlist: Playlist = serde_json::from_value(value)?;
+                Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
+            } else {
+                let video: SingleVideo = serde_json::from_value(value)?;
+                Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
+            }
+        } else {
+            let mut stderr = vec![];
+            if let Some(mut reader) = child.stderr {
+                reader.read_to_end(&mut stderr).await?;
+            }
+            let stderr = String::from_utf8(stderr).unwrap_or_default();
+            Err(Error::ExitCode {
+                code: exit_code.code().unwrap_or(1),
+                stderr,
+            })
+        }
+    }
+
     /// Run youtube-dl with the arguments specified through the builder.
     pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
         use serde_json::{json, Value};
@@ -455,6 +512,21 @@ impl YoutubeDl {
 mod tests {
     use crate::{SearchOptions, YoutubeDl};
     use std::time::Duration;
+    use tokio::runtime::Runtime;
+
+    #[test]
+    fn test_async() {
+        let runtime = Runtime::new().unwrap();
+        let output = runtime.block_on(async move {
+            YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
+                .socket_timeout("15")
+                .run_async()
+                .await
+                .unwrap()
+                .to_single_video()
+        });
+        assert_eq!(output.id, "7XGyWcuYVrg");
+    }
 
     #[test]
     fn test_youtube_url() {
