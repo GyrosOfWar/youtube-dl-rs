@@ -35,7 +35,10 @@ pub struct Format {
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub ext: Option<String>,
     pub filesize: Option<f64>,
+    #[cfg(feature = "youtube-dl")]
     pub filesize_approx: Option<String>,
+    #[cfg(feature = "yt-dlp")]
+    pub filesize_approx: Option<f64>,
     pub format: Option<String>,
     pub format_id: Option<String>,
     pub format_note: Option<String>,
@@ -209,7 +212,10 @@ pub struct SingleVideo {
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
     pub filesize: Option<i64>,
+    #[cfg(feature = "youtube-dl")]
     pub filesize_approx: Option<String>,
+    #[cfg(feature = "yt-dlp")]
+    pub filesize_approx: Option<f64>,
     pub format: Option<String>,
     pub format_id: Option<String>,
     pub format_note: Option<String>,
@@ -314,4 +320,10 @@ pub enum Protocol {
     M3U8Native,
     #[serde(rename = "http_dash_segments")]
     HttpDashSegments,
+    #[cfg(feature = "yt-dlp")]
+    #[serde(rename = "mhtml")]
+    Mhtml,
+    #[cfg(feature = "yt-dlp")]
+    #[serde(rename = "https+https")]
+    HttpsHttps,
 }
