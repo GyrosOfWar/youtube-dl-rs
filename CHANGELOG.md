@@ -1,3 +1,7 @@
+# 0.7.0
+- Added async support via `tokio`, disabled per default. You can opt-in via the `tokio` feature.
+- Add feature `yt-dlp` to support yt-dlp
+
 # 0.6.3
 - Added cookies + custom args settings
 
