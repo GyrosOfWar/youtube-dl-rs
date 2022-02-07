@@ -24,4 +24,8 @@ tokio = { version = "1.0", optional = true, features = ["io-util", "process", "t
 
 [dev-dependencies.tokio]
 version = "1"
-features = ["rt", "rt-multi-thread"]
+features = ["rt", "rt-multi-thread", "macros"]
+
+[[example]]
+name = "async"
+required-features = ["tokio"]
