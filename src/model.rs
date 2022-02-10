@@ -118,6 +118,8 @@ pub struct JsonOutput {
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
+    #[cfg(feature = "yt-dlp")]
+		pub epoch: i64,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
     pub formats: Option<Vec<Format>>,
@@ -208,6 +210,8 @@ pub struct SingleVideo {
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
+    #[cfg(feature = "yt-dlp")]
+		pub epoch: i64,
     pub ext: Option<String>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
