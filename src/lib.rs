@@ -599,4 +599,27 @@ mod tests {
         });
         assert_eq!(output.id, "7XGyWcuYVrg");
     }
+
+    #[test]
+    #[cfg(feature = "yt-dlp")]
+    fn test_with_yt_dlp() {
+        let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
+            .youtube_dl_path("yt-dlp")
+            .run()
+            .unwrap()
+            .to_single_video();
+        assert_eq!(output.id, "7XGyWcuYVrg");
+    }
+
+    #[test]
+    #[cfg(feature = "yt-dlp")]
+    fn test_with_yt_dlp_no_simulate() {
+        let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
+            .youtube_dl_path("yt-dlp")
+            .extra_arg("--no-simulate")
+            .run()
+            .unwrap()
+            .to_single_video();
+        assert_eq!(output.id, "7XGyWcuYVrg");
+    }
 }
