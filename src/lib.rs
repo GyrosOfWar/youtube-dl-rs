@@ -729,6 +729,7 @@ mod tests {
             .into_single_video()
             .unwrap();
         assert_eq!(output.id, "q6EoRBvdVPQ");
+        let _files: Vec<_> = dbg!(std::fs::read_dir(".").unwrap().collect());
         assert!(Path::new("yee.webm").is_file());
         let _ = std::fs::remove_file("yee.webm");
     }
