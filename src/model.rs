@@ -330,4 +330,7 @@ pub enum Protocol {
     #[cfg(feature = "yt-dlp")]
     #[serde(rename = "https+https")]
     HttpsHttps,
+    #[cfg(feature = "yt-dlp")]
+    #[serde(rename = "http_dash_segments+https")]
+    HttpDashSegmentsHttps,
 }
