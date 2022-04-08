@@ -17,8 +17,12 @@ jobs:
       uses: actions/setup-python@v3.1.1
     - name: Install youtube-dl and yt-dlp
       run: pip install youtube-dl yt-dlp
+    - name: Install rustfmt
+      run: rustup component add rustfmt
     - name: Checkout code
       uses: actions/checkout@v2
+    - name: Check formatting
+      run: cargo fmt --all -- --check
     - name: Build
       run: cargo build --verbose
     - name: Run tests
