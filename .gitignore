@@ -2,3 +2,7 @@
 **/*.rs.bk
 test.json
 Cargo.lock
+*.mp4
+*.part
+*.webm
+*.mkv

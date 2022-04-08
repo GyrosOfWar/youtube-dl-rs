@@ -3,7 +3,7 @@
 
 #![allow(missing_docs)]
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -35,9 +35,6 @@ pub struct Format {
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub ext: Option<String>,
     pub filesize: Option<f64>,
-    #[cfg(feature = "youtube-dl")]
-    pub filesize_approx: Option<String>,
-    #[cfg(feature = "yt-dlp")]
     pub filesize_approx: Option<f64>,
     pub format: Option<String>,
     pub format_id: Option<String>,
@@ -64,20 +61,6 @@ pub struct Format {
     #[serde(default, deserialize_with = "parse_codec")]
     pub vcodec: Option<String>,
     pub width: Option<i64>,
-}
-
-// Codec values are set explicitly, and when there is no codec, it is sometimes
-// given as "none" (instead of simply missing from the JSON).
-// Default decoding in this case would result in `Some("none".to_string())`, which is why
-// this custom parse function exists.
-fn parse_codec<'de, D>(d: D) -> Result<Option<String>, D::Error>
-where
-    D: serde::de::Deserializer<'de>,
-{
-    serde::de::Deserialize::deserialize(d).map(|x: Option<_>| match x.unwrap_or_default() {
-        Some(ref s) if s == "none" => None,
-        x => x,
-    })
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
@@ -114,13 +97,11 @@ pub struct JsonOutput {
     pub dislike_count: Option<i64>,
     pub display_id: Option<String>,
     pub duration: Option<Value>,
-    #[cfg(feature = "yt-dlp")]
     pub duration_string: Option<String>,
     pub end_time: Option<String>,
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
-    #[cfg(feature = "yt-dlp")]
     pub epoch: Option<i64>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
@@ -150,7 +131,7 @@ pub struct JsonOutput {
     pub tags: Option<Vec<Option<String>>>,
     pub thumbnail: Option<String>,
     pub thumbnails: Option<Vec<Thumbnail>>,
-    pub timestamp: Option<i64>,
+    pub timestamp: Option<f64>,
     pub title: String,
     pub track: Option<String>,
     pub track_id: Option<String>,
@@ -175,7 +156,6 @@ pub struct Playlist {
     pub uploader_url: Option<String>,
     pub webpage_url: Option<String>,
     pub webpage_url_basename: Option<String>,
-    #[cfg(feature = "yt-dlp")]
     pub thumbnails: Option<Vec<Thumbnail>>,
 }
 
@@ -210,21 +190,16 @@ pub struct SingleVideo {
     pub display_id: Option<String>,
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub duration: Option<Value>,
-    #[cfg(feature = "yt-dlp")]
     pub duration_string: Option<String>,
     pub end_time: Option<String>,
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
-    #[cfg(feature = "yt-dlp")]
     pub epoch: Option<i64>,
     pub ext: Option<String>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
     pub filesize: Option<i64>,
-    #[cfg(feature = "youtube-dl")]
-    pub filesize_approx: Option<String>,
-    #[cfg(feature = "yt-dlp")]
     pub filesize_approx: Option<f64>,
     pub format: Option<String>,
     pub format_id: Option<String>,
@@ -272,7 +247,7 @@ pub struct SingleVideo {
     pub tbr: Option<f64>,
     pub thumbnail: Option<String>,
     pub thumbnails: Option<Vec<Thumbnail>>,
-    pub timestamp: Option<i64>,
+    pub timestamp: Option<f64>,
     pub title: String,
     pub track: Option<String>,
     pub track_id: Option<String>,
@@ -330,13 +305,24 @@ pub enum Protocol {
     M3U8Native,
     #[serde(rename = "http_dash_segments")]
     HttpDashSegments,
-    #[cfg(feature = "yt-dlp")]
     #[serde(rename = "mhtml")]
     Mhtml,
-    #[cfg(feature = "yt-dlp")]
     #[serde(rename = "https+https")]
     HttpsHttps,
-    #[cfg(feature = "yt-dlp")]
     #[serde(rename = "http_dash_segments+https")]
     HttpDashSegmentsHttps,
+}
+
+// Codec values are set explicitly, and when there is no codec, it is sometimes
+// given as "none" (instead of simply missing from the JSON).
+// Default decoding in this case would result in `Some("none".to_string())`, which is why
+// this custom parse function exists.
+fn parse_codec<'de, D>(d: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Deserialize::deserialize(d).map(|x: Option<_>| match x.unwrap_or_default() {
+        Some(s) if s == "none" => None,
+        x => x,
+    })
 }

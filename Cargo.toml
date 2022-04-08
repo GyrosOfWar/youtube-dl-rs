@@ -8,12 +8,7 @@ license = "MIT/Apache-2.0"
 repository = "https://github.com/GyrosOfWar/youtube-dl-rs"
 homepage = "https://github.com/GyrosOfWar/youtube-dl-rs"
 categories = ["multimedia::video"]
-keywords = ["youtube-dl", "youtube"]
-
-[features]
-default = ["youtube-dl"]
-youtube-dl = []
-yt-dlp = []
+keywords = ["youtube-dl", "youtube", "yt-dlp"]
 
 [dependencies]
 serde = { version = "1.0.124", features = ["derive"] }
