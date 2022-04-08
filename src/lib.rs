@@ -245,7 +245,7 @@ impl YoutubeDl {
             referer: None,
             process_timeout: None,
             extract_audio: false,
-						playlist_items: None,
+            playlist_items: None,
             extra_args: Vec::new(),
         }
     }
@@ -390,10 +390,10 @@ impl YoutubeDl {
             args.push("--extract-audio");
         }
 
-				if let Some(playlist_items) = &self.playlist_items {
-					args.push("--playlist-items");
-					args.push(playlist_items);
-				}
+        if let Some(playlist_items) = &self.playlist_items {
+            args.push("--playlist-items");
+            args.push(playlist_items);
+        }
 
         for extra_arg in &self.extra_args {
             args.push(extra_arg);
