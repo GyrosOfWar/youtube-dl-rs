@@ -114,12 +114,14 @@ pub struct JsonOutput {
     pub dislike_count: Option<i64>,
     pub display_id: Option<String>,
     pub duration: Option<Value>,
+    #[cfg(feature = "yt-dlp")]
+    pub duration_string: Option<String>,
     pub end_time: Option<String>,
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
     #[cfg(feature = "yt-dlp")]
-    pub epoch: i64,
+    pub epoch: Option<i64>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
     pub formats: Option<Vec<Format>>,
@@ -173,6 +175,8 @@ pub struct Playlist {
     pub uploader_url: Option<String>,
     pub webpage_url: Option<String>,
     pub webpage_url_basename: Option<String>,
+    #[cfg(feature = "yt-dlp")]
+    pub thumbnails: Option<Vec<Thumbnail>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
@@ -206,12 +210,14 @@ pub struct SingleVideo {
     pub display_id: Option<String>,
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub duration: Option<Value>,
+    #[cfg(feature = "yt-dlp")]
+    pub duration_string: Option<String>,
     pub end_time: Option<String>,
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
     #[cfg(feature = "yt-dlp")]
-    pub epoch: i64,
+    pub epoch: Option<i64>,
     pub ext: Option<String>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
@@ -330,4 +336,7 @@ pub enum Protocol {
     #[cfg(feature = "yt-dlp")]
     #[serde(rename = "https+https")]
     HttpsHttps,
+    #[cfg(feature = "yt-dlp")]
+    #[serde(rename = "http_dash_segments+https")]
+    HttpDashSegmentsHttps,
 }

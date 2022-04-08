@@ -227,6 +227,7 @@ pub struct YoutubeDl {
     extract_audio: bool,
     #[cfg(feature = "yt-dlp")]
     download: bool,
+		playlist_items: Option<String>,
     extra_args: Vec<String>,
 }
 
@@ -247,7 +248,7 @@ impl YoutubeDl {
             process_timeout: None,
             extract_audio: false,
             #[cfg(feature = "yt-dlp")]
-            download: false,
+            playlist_items: None,
             extra_args: Vec::new(),
         }
     }
@@ -323,7 +324,7 @@ impl YoutubeDl {
         self.extract_audio = extract_audio;
         self
     }
-
+  
     #[cfg(feature = "yt-dlp")]
     /// Specify whether to download videos, instead of just listing them.
     ///
@@ -332,6 +333,13 @@ impl YoutubeDl {
         self.download = download;
         self
     }
+
+		/// Set the `--playlist-items` command line flag.
+		pub fn playlist_items(&mut self, index: u32) -> &mut Self {
+			self.playlist_items = Some(index.to_string());
+			self
+		}
+
 
     /// Add an additional custom CLI argument.
     ///
@@ -395,6 +403,11 @@ impl YoutubeDl {
             args.push("--extract-audio");
         }
 
+        if let Some(playlist_items) = &self.playlist_items {
+            args.push("--playlist-items");
+            args.push(playlist_items);
+        }
+
         for extra_arg in &self.extra_args {
             args.push(extra_arg);
         }
@@ -427,6 +440,8 @@ impl YoutubeDl {
             .stderr(Stdio::piped())
             .args(process_args)
             .spawn()?;
+				let mut x = Command::new(path);
+				x.args(self.process_args());
 
         // Continually read from stdout so that it does not fill up with large output and hang forever.
         // We don't need to do this for stderr since only stdout has potentially giant JSON.
