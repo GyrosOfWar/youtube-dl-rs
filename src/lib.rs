@@ -225,6 +225,7 @@ pub struct YoutubeDl {
     url: String,
     process_timeout: Option<Duration>,
     extract_audio: bool,
+		playlist_items: Option<String>,
     extra_args: Vec<String>,
 }
 
@@ -244,6 +245,7 @@ impl YoutubeDl {
             referer: None,
             process_timeout: None,
             extract_audio: false,
+            playlist_items: None,
             extra_args: Vec::new(),
         }
     }
@@ -320,6 +322,12 @@ impl YoutubeDl {
         self
     }
 
+		/// Set the `--playlist-items` command line flag.
+		pub fn playlist_items(&mut self, index: u32) -> &mut Self {
+			self.playlist_items = Some(index.to_string());
+			self
+		}
+
     /// Add an additional custom CLI argument.
     ///
     /// This allows specifying arguments that are not covered by other
@@ -382,6 +390,11 @@ impl YoutubeDl {
             args.push("--extract-audio");
         }
 
+        if let Some(playlist_items) = &self.playlist_items {
+            args.push("--playlist-items");
+            args.push(playlist_items);
+        }
+
         for extra_arg in &self.extra_args {
             args.push(extra_arg);
         }
@@ -407,6 +420,8 @@ impl YoutubeDl {
             .stderr(Stdio::piped())
             .args(process_args)
             .spawn()?;
+				let mut x = Command::new(path);
+				x.args(self.process_args());
 
         // Continually read from stdout so that it does not fill up with large output and hang forever.
         // We don't need to do this for stderr since only stdout has potentially giant JSON.
