@@ -1,6 +1,6 @@
 # Unreleased
-- Removed `yt-dlp` compile-time feature and made it a runtime switch (`use_yt_dlp()`)
-- Implement downloading for both `yt-dlp` and `youtube-dl`
+- BREAKING CHANGE: Removed `yt-dlp` compile-time feature and made it a runtime switch (`use_yt_dlp()`)
+- feat: Implement downloading for both `yt-dlp` and `youtube-dl`
 
 # 0.7.0
 - Added async support via `tokio`, disabled per default. You can opt-in via the `tokio` feature.
