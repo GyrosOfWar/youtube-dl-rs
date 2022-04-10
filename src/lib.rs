@@ -211,22 +211,6 @@ impl fmt::Display for SearchOptions {
     }
 }
 
-/// Implementations of youtube-dl. Currently, the vanilla `youtube-dl` and
-/// the fork `yt-dlp` are supported.
-#[derive(Debug, Clone, Copy)]
-pub enum YoutubeDlImplementation {
-    /// youtube-dl
-    YoutubeDl,
-    /// yt-dlp
-    YtDlp,
-}
-
-impl Default for YoutubeDlImplementation {
-    fn default() -> Self {
-        YoutubeDlImplementation::YoutubeDl
-    }
-}
-
 /// A builder to create a `youtube-dl` command to execute.
 #[derive(Clone, Debug)]
 pub struct YoutubeDl {
@@ -245,7 +229,6 @@ pub struct YoutubeDl {
     download: bool,
     playlist_items: Option<String>,
     extra_args: Vec<String>,
-    implementation: YoutubeDlImplementation,
     output_template: Option<String>,
 }
 
@@ -267,7 +250,6 @@ impl YoutubeDl {
             extract_audio: false,
             playlist_items: None,
             extra_args: Vec::new(),
-            implementation: Default::default(),
             download: false,
             output_template: None,
         }
@@ -348,6 +330,7 @@ impl YoutubeDl {
     /// Specify whether to download videos, instead of just listing them.
     ///
     /// Note that no progress will be logged or emitted.
+    #[cfg(not(feature = "youtube-dl"))]
     pub fn download(&mut self, download: bool) -> &mut Self {
         self.download = download;
         self
@@ -368,26 +351,27 @@ impl YoutubeDl {
         self
     }
 
-    /// Use `yt-dlp` instead of `youtube-dl`
-    pub fn use_yt_dlp(&mut self) -> &mut Self {
-        self.implementation = YoutubeDlImplementation::YtDlp;
-        self
-    }
-
     /// Specify the filename template. Only relevant for downloading.
     /// (referred to as "output template" by [youtube-dl docs](https://github.com/ytdl-org/youtube-dl#output-template))
+    #[cfg(not(feature = "youtube-dl"))]
     pub fn output_template<S: Into<String>>(&mut self, arg: S) -> &mut Self {
         self.output_template = Some(arg.into());
         self
     }
 
+    #[cfg(feature = "youtube-dl")]
     fn path(&self) -> &Path {
         match &self.youtube_dl_path {
             Some(path) => path,
-            None => match self.implementation {
-                YoutubeDlImplementation::YoutubeDl => Path::new("youtube-dl"),
-                YoutubeDlImplementation::YtDlp => Path::new("yt-dlp"),
-            },
+            None => Path::new("youtube-dl"),
+        }
+    }
+
+    #[cfg(not(feature = "youtube-dl"))]
+    fn path(&self) -> &Path {
+        match &self.youtube_dl_path {
+            Some(path) => path,
+            None => Path::new("yt-dlp"),
         }
     }
 
@@ -451,20 +435,11 @@ impl YoutubeDl {
             args.push(extra_arg);
         }
 
-        let downloading_with_youtube_dl =
-            self.download && matches!(self.implementation, YoutubeDlImplementation::YoutubeDl);
+        args.push("-J");
 
-        // --print-json takes care of this
-        if !downloading_with_youtube_dl {
-            args.push("-J");
-        }
-
+        #[cfg(not(feature = "youtube-dl"))]
         if self.download {
-            match self.implementation {
-                YoutubeDlImplementation::YoutubeDl => args.push("--print-json"),
-                YoutubeDlImplementation::YtDlp => args.push("--no-simulate"),
-            }
-
+            args.push("--no-simulate");
             args.push("--no-progress");
         }
 
@@ -641,19 +616,6 @@ mod tests {
         assert_eq!(output.entries.unwrap().first().unwrap().id, "dQw4w9WgXcQ");
     }
 
-    // #[test]
-    // appears to be broken in youtube-dl, season is no longer in the JSON output
-    #[allow(unused)]
-    fn test_video_with_season() {
-        let output = YoutubeDl::new("https://youtube.com/watch?v=sAD1nayZ9dk")
-            .run()
-            .unwrap()
-            .into_single_video()
-            .unwrap();
-
-        assert_eq!(output.season_number, Some(2));
-    }
-
     #[test]
     fn correct_format_codec_parsing() {
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=WhWc3b3KhnY")
@@ -693,7 +655,6 @@ mod tests {
     #[test]
     fn test_with_yt_dlp() {
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
-            .use_yt_dlp()
             .run()
             .unwrap()
             .into_single_video()
@@ -701,29 +662,11 @@ mod tests {
         assert_eq!(output.id, "7XGyWcuYVrg");
     }
 
-    // test is flaky
-    // #[test]
-    #[allow(unused)]
-    fn test_download_with_youtube_dl() {
-        let output = YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
-            .download(true)
-            .output_template("video")
-            .run()
-            .unwrap()
-            .into_single_video()
-            .unwrap();
-        assert_eq!(output.id, "q6EoRBvdVPQ");
-        assert!(Path::new("video.mkv").is_file());
-        let _ = std::fs::remove_file("video.mkv");
-    }
-
-    // test doesn't work on CI for some reason
-    // #[test]
-    #[allow(unused)]
+    #[test]
+    #[cfg(not(feature = "youtube-dl"))]
     fn test_download_with_yt_dlp() {
         // yee
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
-            .use_yt_dlp()
             .download(true)
             .output_template("yee")
             .run()
@@ -737,11 +680,23 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(feature = "youtube-dl"))]
     fn test_timestamp_parse_error() {
         let output = YoutubeDl::new("https://www.reddit.com/r/loopdaddy/comments/baguqq/first_time_poster_here_couldnt_resist_sharing_my")
             .output_template("video")
             .run()
             .unwrap();
         assert_eq!(output.into_single_video().unwrap().width, Some(404));
+    }
+
+    #[test]
+    #[cfg(feature = "youtube-dl")]
+    fn test_with_youtube_dl() {
+        let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
+            .run()
+            .unwrap()
+            .into_single_video()
+            .unwrap();
+        assert_eq!(output.id, "7XGyWcuYVrg");
     }
 }
