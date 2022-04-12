@@ -30,6 +30,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 pub mod model;
+#[cfg(feature = "downloader")]
+pub mod downloader;
 
 pub use crate::model::*;
 
