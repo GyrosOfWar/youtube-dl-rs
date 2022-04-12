@@ -29,11 +29,15 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-pub mod model;
 #[cfg(feature = "downloader")]
+/// Exposes a function to download the latest version of youtube-dl/yt-dlp.
 pub mod downloader;
+pub mod model;
 
 pub use crate::model::*;
+
+#[cfg(feature = "downloader")]
+pub use crate::downloader::download_yt_dlp;
 
 /// Data returned by `YoutubeDl::run`. Output can either be a single video or a playlist of videos.
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -81,6 +85,14 @@ pub enum Error {
 
     /// Process-level timeout expired.
     ProcessTimeout,
+
+    /// HTTP error (when fetching youtube-dl/yt-dlp)
+    #[cfg(feature = "downloader")]
+    Http(reqwest::Error),
+
+    /// When no GitHub release could be found to download the youtube-dl/yt-dlp executable.
+    #[cfg(feature = "downloader")]
+    NoReleaseFound,
 }
 
 impl From<std::io::Error> for Error {
@@ -95,6 +107,13 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+#[cfg(feature = "downloader")]
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error::Http(err)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -104,6 +123,10 @@ impl fmt::Display for Error {
                 write!(f, "non-zero exit code: {}, stderr: {}", code, stderr)
             }
             Self::ProcessTimeout => write!(f, "process timed out"),
+            #[cfg(feature = "downloader")]
+            Self::Http(err) => write!(f, "http error: {}", err),
+            #[cfg(feature = "downloader")]
+            Self::NoReleaseFound => write!(f, "no github release found for specified binary"),
         }
     }
 }
@@ -115,6 +138,10 @@ impl StdError for Error {
             Self::Json(err) => Some(err),
             Self::ExitCode { .. } => None,
             Self::ProcessTimeout => None,
+            #[cfg(feature = "downloader")]
+            Self::Http(err) => Some(err),
+            #[cfg(feature = "downloader")]
+            Self::NoReleaseFound => None,
         }
     }
 }
@@ -232,6 +259,7 @@ pub struct YoutubeDl {
     playlist_items: Option<String>,
     extra_args: Vec<String>,
     output_template: Option<String>,
+    output_directory: Option<String>,
 }
 
 impl YoutubeDl {
@@ -254,6 +282,7 @@ impl YoutubeDl {
             extra_args: Vec::new(),
             download: false,
             output_template: None,
+            output_directory: None,
         }
     }
 
@@ -361,6 +390,14 @@ impl YoutubeDl {
         self
     }
 
+    /// Specify the output directory. Only relevant for downloading.
+    /// (the `-P` command line switch)
+    #[cfg(not(feature = "youtube-dl"))]
+    pub fn output_directory<S: Into<String>>(&mut self, arg: S) -> &mut Self {
+        self.output_directory = Some(arg.into());
+        self
+    }
+
     #[cfg(feature = "youtube-dl")]
     fn path(&self) -> &Path {
         match &self.youtube_dl_path {
@@ -431,6 +468,11 @@ impl YoutubeDl {
         if let Some(output_template) = &self.output_template {
             args.push("-o");
             args.push(output_template);
+        }
+
+        if let Some(output_dir) = &self.output_directory {
+            args.push("-P");
+            args.push(output_dir);
         }
 
         for extra_arg in &self.extra_args {
