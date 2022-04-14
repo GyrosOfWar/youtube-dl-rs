@@ -42,7 +42,7 @@ pub struct Format {
     pub fps: Option<f64>,
     pub fragment_base_url: Option<String>,
     pub fragments: Option<Vec<Fragment>>,
-    pub height: Option<i64>,
+    pub height: Option<f64>,
     pub http_headers: Option<BTreeMap<String, Option<String>>>,
     pub language: Option<String>,
     pub language_preference: Option<i64>,
@@ -60,7 +60,7 @@ pub struct Format {
     pub vbr: Option<f64>,
     #[serde(default, deserialize_with = "parse_codec")]
     pub vcodec: Option<String>,
-    pub width: Option<i64>,
+    pub width: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
@@ -209,7 +209,7 @@ pub struct SingleVideo {
     pub fragment_base_url: Option<String>,
     pub fragments: Option<Vec<Fragment>>,
     pub genre: Option<String>,
-    pub height: Option<i64>,
+    pub height: Option<f64>,
     pub http_headers: Option<BTreeMap<String, Option<String>>>,
     pub id: String,
     pub is_live: Option<bool>,
@@ -261,7 +261,7 @@ pub struct SingleVideo {
     pub vcodec: Option<String>,
     pub view_count: Option<i64>,
     pub webpage_url: Option<String>,
-    pub width: Option<i64>,
+    pub width: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
@@ -274,11 +274,11 @@ pub struct Subtitle {
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Thumbnail {
     pub filesize: Option<i64>,
-    pub height: Option<i64>,
+    pub height: Option<f64>,
     pub id: Option<String>,
     pub preference: Option<i64>,
     pub url: Option<String>,
-    pub width: Option<i64>,
+    pub width: Option<f64>,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug)]
