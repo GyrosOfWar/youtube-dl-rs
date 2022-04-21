@@ -255,6 +255,7 @@ pub struct YoutubeDl {
     url: String,
     process_timeout: Option<Duration>,
     extract_audio: bool,
+    #[cfg(not(feature = "youtube-dl"))]
     download: bool,
     playlist_items: Option<String>,
     extra_args: Vec<String>,
@@ -280,6 +281,7 @@ impl YoutubeDl {
             extract_audio: false,
             playlist_items: None,
             extra_args: Vec::new(),
+            #[cfg(not(feature = "youtube-dl"))]
             download: false,
             output_template: None,
             output_directory: None,
@@ -613,6 +615,7 @@ impl YoutubeDl {
 #[cfg(test)]
 mod tests {
     use crate::{SearchOptions, YoutubeDl};
+    #[cfg(not(feature = "youtube-dl"))]
     use std::path::Path;
     use std::time::Duration;
 
@@ -730,7 +733,7 @@ mod tests {
             .output_template("video")
             .run()
             .unwrap();
-        assert_eq!(output.into_single_video().unwrap().width, Some(404));
+        assert_eq!(output.into_single_video().unwrap().width, Some(404.0));
     }
 
     #[test]
