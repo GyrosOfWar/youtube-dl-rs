@@ -114,7 +114,7 @@ impl YoutubeDlFetcher {
             destination.join(FILE_NAME)
         };
 
-        let mut file = open_file(&path).await?;
+        let mut file = create_file(&path).await?;
         let mut response = self.client.get(release.url).send().await?;
 
         while let Some(chunk) = response.chunk().await? {
@@ -126,13 +126,17 @@ impl YoutubeDlFetcher {
 }
 
 #[cfg(target_os = "windows")]
-async fn open_file(path: impl AsRef<Path>) -> tokio::io::Result<File> {
-    File::open(&path).await
+async fn create_file(path: impl AsRef<Path>) -> tokio::io::Result<File> {
+    File::create(&path).await
 }
 
 #[cfg(not(target_os = "windows"))]
-async fn open_file(path: impl AsRef<Path>) -> tokio::io::Result<File> {
-    tokio::fs::OpenOptions::new()
+async fn create_file(path: impl AsRef<Path>) -> tokio::io::Result<File> {
+    use tokio::fs::OpenOptions;
+    
+    OpenOptions::new()
+        .read(true)
+        .write(true)
         .create(true)
         .mode(0o744)
         .open(&path)
@@ -166,5 +170,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.into_single_video().unwrap().id, "otCWfUtZ-bU");
+        let _ = std::fs::remove_file("yt-dlp");
+        let _ = std::fs::remove_file("yt-dlp.exe");
     }
 }
