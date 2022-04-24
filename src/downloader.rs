@@ -65,7 +65,20 @@ impl YoutubeDlFetcher {
             self.github_org, self.repo_name
         );
 
-        let release: GithubRelease = self.client.get(url).send().await?.json().await?;
+        let response = self
+            .client
+            .get(url)
+            .header("User-Agent", "youtube-dl-rs")
+            .send()
+            .await?;
+        let release: GithubRelease = if log::log_enabled!(log::Level::Debug) {
+            let text = response.text().await?;
+            log::debug!("received response from github: {}", text);
+            serde_json::from_str(&text)?
+        } else {
+            response.json().await?
+        };
+
         info!("received response from github: {:?}", release);
 
         let url = release
@@ -122,7 +135,7 @@ mod tests {
     use crate::download_yt_dlp;
 
     fn logger() {
-        std::env::set_var("RUST_LOG", "debug");
+        std::env::set_var("RUST_LOG", "info");
         let _ = env_logger::try_init();
     }
 

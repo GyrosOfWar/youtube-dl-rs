@@ -6,3 +6,5 @@ Cargo.lock
 *.part
 *.webm
 *.mkv
+/yt-dlp.exe
+/yt-dlp
