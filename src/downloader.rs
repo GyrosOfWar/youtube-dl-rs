@@ -1,16 +1,18 @@
 use std::path::{Path, PathBuf};
 
+use crate::Error;
 use log::info;
 use serde::Deserialize;
-use tokio::io::AsyncWriteExt;
+use tokio::{
+    fs::{self, File},
+    io::AsyncWriteExt,
+};
 
 const FILE_NAME: &str = if cfg!(target_os = "windows") {
     "yt-dlp.exe"
 } else {
     "yt-dlp"
 };
-
-use crate::Error;
 
 #[derive(Deserialize, Debug)]
 struct GithubRelease {
@@ -22,6 +24,11 @@ struct GithubRelease {
 struct GithubAsset {
     browser_download_url: String,
     name: String,
+}
+
+struct NewestRelease {
+    url: String,
+    tag: String,
 }
 
 /// Handles downloading of the youtube-dl/yt-dlp binary from GitHub.
@@ -41,11 +48,6 @@ impl Default for YoutubeDlFetcher {
             repo_name: "yt-dlp".into(),
         }
     }
-}
-
-struct NewestRelease {
-    url: String,
-    tag: String,
 }
 
 impl YoutubeDlFetcher {
@@ -98,8 +100,6 @@ impl YoutubeDlFetcher {
     /// to the specified destination. `destination` can either be a directory, in which case
     /// the executable is downloaded to that directory, or a file, in which case the file is created.
     pub async fn download(&self, destination: impl AsRef<Path>) -> Result<PathBuf, Error> {
-        use tokio::fs::{self, File};
-
         let release = self.find_newest_release().await?;
         log::info!("found release: {} at URL {}", release.tag, release.url);
         let destination = destination.as_ref();
@@ -114,7 +114,7 @@ impl YoutubeDlFetcher {
             destination.join(FILE_NAME)
         };
 
-        let mut file = File::create(&path).await?;
+        let mut file = open_file(&path).await?;
         let mut response = self.client.get(release.url).send().await?;
 
         while let Some(chunk) = response.chunk().await? {
@@ -123,6 +123,20 @@ impl YoutubeDlFetcher {
 
         Ok(path)
     }
+}
+
+#[cfg(target_os = "windows")]
+async fn open_file(path: impl AsRef<Path>) -> tokio::io::Result<File> {
+    File::open(&path).await
+}
+
+#[cfg(not(target_os = "windows"))]
+async fn open_file(path: impl AsRef<Path>) -> tokio::io::Result<File> {
+    tokio::fs::OpenOptions::new()
+        .create(true)
+        .mode(0o744)
+        .open(&path)
+        .await
 }
 
 /// Downloads the yt-dlp executable to the specified destination.
