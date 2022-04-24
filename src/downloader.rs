@@ -132,7 +132,7 @@ pub async fn download_yt_dlp(destination: impl AsRef<Path>) -> Result<PathBuf, E
 
 #[cfg(test)]
 mod tests {
-    use crate::download_yt_dlp;
+    use crate::{download_yt_dlp, YoutubeDl};
 
     fn logger() {
         std::env::set_var("RUST_LOG", "info");
@@ -142,7 +142,15 @@ mod tests {
     #[tokio::test]
     async fn test_download_yt_dlp() {
         logger();
-        let downloader = download_yt_dlp(".").await.unwrap();
-        assert!(downloader.is_file(), "downloaded file should exist");
+        let path = download_yt_dlp(".").await.unwrap();
+        assert!(path.is_file(), "downloaded file should exist");
+
+        let result = YoutubeDl::new("https://www.youtube.com/watch?v=otCWfUtZ-bU")
+            .youtube_dl_path(path)
+            .run_async()
+            .await
+            .unwrap();
+
+        assert_eq!(result.into_single_video().unwrap().id, "otCWfUtZ-bU");
     }
 }
