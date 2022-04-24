@@ -133,7 +133,7 @@ async fn create_file(path: impl AsRef<Path>) -> tokio::io::Result<File> {
 #[cfg(not(target_os = "windows"))]
 async fn create_file(path: impl AsRef<Path>) -> tokio::io::Result<File> {
     use tokio::fs::OpenOptions;
-    
+
     OpenOptions::new()
         .read(true)
         .write(true)
