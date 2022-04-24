@@ -116,3 +116,14 @@ impl YoutubeDlFetcher {
 pub async fn download_yt_dlp(destination: impl AsRef<Path>) -> Result<PathBuf, Error> {
     YoutubeDlFetcher::default().download(destination).await
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::download_yt_dlp;
+
+    #[tokio::test]
+    async fn test_download_yt_dlp() {
+        let downloader = download_yt_dlp(".").await.unwrap();
+        assert!(downloader.is_file(), "downloaded file should exist");
+    }
+}
