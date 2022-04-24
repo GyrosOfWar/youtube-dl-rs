@@ -3,7 +3,6 @@
 //! Example usage:
 //! ```rust
 //! use youtube_dl::YoutubeDl;
-
 //! let output = YoutubeDl::new("https://www.youtube.com/watch?v=VFbhKZFzbzk")
 //!   .socket_timeout("15")
 //!   .run()

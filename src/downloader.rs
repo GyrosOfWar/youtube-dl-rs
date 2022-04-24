@@ -121,8 +121,14 @@ pub async fn download_yt_dlp(destination: impl AsRef<Path>) -> Result<PathBuf, E
 mod tests {
     use crate::download_yt_dlp;
 
+    fn logger() {
+        std::env::set_var("RUST_LOG", "debug");
+        let _ = env_logger::try_init();
+    }
+
     #[tokio::test]
     async fn test_download_yt_dlp() {
+        logger();
         let downloader = download_yt_dlp(".").await.unwrap();
         assert!(downloader.is_file(), "downloaded file should exist");
     }
