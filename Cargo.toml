@@ -33,3 +33,7 @@ features = ["rt", "rt-multi-thread", "macros"]
 [[example]]
 name = "async"
 required-features = ["tokio"]
+
+[[example]]
+name = "downloader"
+required-features = ["downloader"]
