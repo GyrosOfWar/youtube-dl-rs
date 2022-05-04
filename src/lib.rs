@@ -248,6 +248,8 @@ impl YoutubeDl {
             process_timeout: None,
             extract_audio: false,
             #[cfg(feature = "yt-dlp")]
+						download: false,
+            #[cfg(feature = "yt-dlp")]
             playlist_items: None,
             extra_args: Vec::new(),
         }
