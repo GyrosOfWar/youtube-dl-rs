@@ -22,7 +22,7 @@ pub struct Comment {
     pub id: Option<String>,
     pub parent: Option<String>,
     pub text: Option<String>,
-    pub timestamp: Option<i64>,
+    pub timestamp: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
@@ -35,8 +35,6 @@ pub struct Format {
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub ext: Option<String>,
     pub filesize: Option<f64>,
-    #[cfg(feature = "youtube-dl")]
-    pub filesize_approx: Option<String>,
     #[cfg(feature = "yt-dlp")]
     pub filesize_approx: Option<f64>,
     pub format: Option<String>,
@@ -150,7 +148,7 @@ pub struct JsonOutput {
     pub tags: Option<Vec<Option<String>>>,
     pub thumbnail: Option<String>,
     pub thumbnails: Option<Vec<Thumbnail>>,
-    pub timestamp: Option<i64>,
+    pub timestamp: Option<f64>,
     pub title: String,
     pub track: Option<String>,
     pub track_id: Option<String>,
@@ -222,8 +220,6 @@ pub struct SingleVideo {
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
     pub filesize: Option<i64>,
-    #[cfg(feature = "youtube-dl")]
-    pub filesize_approx: Option<String>,
     #[cfg(feature = "yt-dlp")]
     pub filesize_approx: Option<f64>,
     pub format: Option<String>,
@@ -272,7 +268,7 @@ pub struct SingleVideo {
     pub tbr: Option<f64>,
     pub thumbnail: Option<String>,
     pub thumbnails: Option<Vec<Thumbnail>>,
-    pub timestamp: Option<i64>,
+    pub timestamp: Option<f64>,
     pub title: String,
     pub track: Option<String>,
     pub track_id: Option<String>,
@@ -339,4 +335,7 @@ pub enum Protocol {
     #[cfg(feature = "yt-dlp")]
     #[serde(rename = "http_dash_segments+https")]
     HttpDashSegmentsHttps,
+    #[cfg(feature = "yt-dlp")]
+    #[serde(rename = "m3u8_native+m3u8_native")]
+    M3U8NativeM3U8Native,
 }
