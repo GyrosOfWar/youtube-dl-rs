@@ -6,8 +6,12 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
-use either::Either;
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub enum IntOrString {
+	I64(i64),
+	String(String)
+}
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Chapter {
     pub end_time: Option<f64>,
@@ -53,7 +57,7 @@ pub struct Format {
     pub player_url: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
-    pub quality: Option<Either<i64, String>>,
+    pub quality: Option<IntOrString>,
     pub resolution: Option<String>,
     pub source_preference: Option<i64>,
     pub stretched_ratio: Option<f64>,
