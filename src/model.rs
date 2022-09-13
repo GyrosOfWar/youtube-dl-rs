@@ -3,15 +3,44 @@
 
 #![allow(missing_docs)]
 
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::fmt;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum IntOrString {
 	I64(i64),
 	String(String)
 }
+
+fn int_or_string<'de, D>(deserializer: D) -> Result<Option<IntOrString>, D::Error>
+	where D: de::Deserializer<'de>
+{
+	struct JsonVisitor;
+
+	impl<'de> de::Visitor<'de> for JsonVisitor {
+		type Value = Option<IntOrString>;
+
+		fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+			formatter.write_str("i64 or String")
+		}
+
+		fn visit_i64<E>(self, val: i64) -> Result<Self::Value, E>
+			where E: de::Error
+		{
+			Ok(Some(IntOrString::I64(val)))
+		}
+
+		fn visit_str<E>(self, val: &str) -> Result<Self::Value, E>
+			where E: de::Error
+		{
+			val.parse().map(IntOrString::String).map(Some).map_err(de::Error::custom)
+		}
+	}
+	deserializer.deserialize_any(JsonVisitor)
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Chapter {
     pub end_time: Option<f64>,
@@ -57,6 +86,7 @@ pub struct Format {
     pub player_url: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
+		#[serde(deserialize_with = "int_or_string")]
     pub quality: Option<IntOrString>,
     pub resolution: Option<String>,
     pub source_preference: Option<i64>,
