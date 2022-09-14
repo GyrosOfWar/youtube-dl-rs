@@ -14,33 +14,6 @@ pub enum IntOrString {
 	String(String)
 }
 
-fn int_or_string<'de, D>(deserializer: D) -> Result<Option<IntOrString>, D::Error>
-	where D: de::Deserializer<'de>
-{
-	struct JsonVisitor;
-
-	impl<'de> de::Visitor<'de> for JsonVisitor {
-		type Value = Option<IntOrString>;
-
-		fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-			formatter.write_str("i64 or String")
-		}
-
-		fn visit_i64<E>(self, val: i64) -> Result<Self::Value, E>
-			where E: de::Error
-		{
-			Ok(Some(IntOrString::I64(val)))
-		}
-
-		fn visit_str<E>(self, val: &str) -> Result<Self::Value, E>
-			where E: de::Error
-		{
-			val.parse().map(IntOrString::String).map(Some).map_err(de::Error::custom)
-		}
-	}
-	deserializer.deserialize_any(JsonVisitor)
-}
-
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Chapter {
     pub end_time: Option<f64>,
@@ -86,7 +59,7 @@ pub struct Format {
     pub player_url: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
-		#[serde(deserialize_with = "int_or_string")]
+		#[serde(default, deserialize_with = "int_or_string")]
     pub quality: Option<IntOrString>,
     pub resolution: Option<String>,
     pub source_preference: Option<i64>,
@@ -373,4 +346,35 @@ pub enum Protocol {
     #[cfg(feature = "yt-dlp")]
     #[serde(rename = "m3u8_native+m3u8_native")]
     M3U8NativeM3U8Native,
+}
+
+fn int_or_string<'de, D>(deserializer: D) -> Result<Option<IntOrString>, D::Error>
+	where D: de::Deserializer<'de>
+{
+	struct JsonVisitor;
+
+	impl<'de> de::Visitor<'de> for JsonVisitor {
+		type Value = Option<IntOrString>;
+
+		fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+			formatter.write_str("i64 or String")
+		}
+
+		fn visit_i64<E>(self, val: i64) -> Result<Self::Value, E> where E: de::Error {
+			Ok(Some(IntOrString::I64(val)))
+		}
+
+		fn visit_u64<E>(self, val: u64) -> Result<Self::Value, E> where E: de::Error {
+			Ok(Some(IntOrString::I64(val as i64)))
+		}
+
+		fn visit_str<E>(self, val: &str) -> Result<Self::Value, E> where E: de::Error {
+			val.parse().map(IntOrString::String).map(Some).map_err(de::Error::custom)
+		}
+
+		fn visit_unit<E>(self) -> Result<Self::Value, E> where E: de::Error {
+			Ok(None)
+		}
+	}
+	deserializer.deserialize_any(JsonVisitor)
 }

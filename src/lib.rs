@@ -430,7 +430,6 @@ impl YoutubeDl {
 
     /// Run youtube-dl with the arguments specified through the builder.
     pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
-			dbg!(2);
         use serde_json::{json, Value};
         use std::io::Read;
         use std::process::{Command, Stdio};
@@ -467,16 +466,12 @@ impl YoutubeDl {
         if exit_code.success() {
             let value: Value = serde_json::from_reader(stdout.as_slice())?;
 
-						dbg!(1);
             let is_playlist = value["_type"] == json!("playlist");
             if is_playlist {
-						dbg!(3);
                 let playlist: Playlist = serde_json::from_value(value)?;
                 Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
             } else {
-						dbg!(4);
                 let video: SingleVideo = serde_json::from_value(value)?;
-								dbg!(&video);
                 Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
             }
         } else {
