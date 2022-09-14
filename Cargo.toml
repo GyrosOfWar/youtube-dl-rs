@@ -21,7 +21,6 @@ serde_json = "1.0.64"
 log = "0.4.14"
 wait-timeout = "0.2.0"
 tokio = { version = "1.0", optional = true, features = ["io-util", "process", "time"] }
-either = { version = "1.8.0", features = ["serde"] }
 
 [dev-dependencies.tokio]
 version = "1"
