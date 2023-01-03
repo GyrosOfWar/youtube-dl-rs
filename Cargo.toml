@@ -10,11 +10,6 @@ homepage = "https://github.com/GyrosOfWar/youtube-dl-rs"
 categories = ["multimedia::video"]
 keywords = ["youtube-dl", "youtube"]
 
-[features]
-default = ["youtube-dl"]
-youtube-dl = []
-yt-dlp = []
-
 [dependencies]
 serde = { version = "1.0.124", features = ["derive"] }
 serde_json = "1.0.64"

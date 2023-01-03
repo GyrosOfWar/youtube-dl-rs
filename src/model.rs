@@ -42,7 +42,6 @@ pub struct Format {
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub ext: Option<String>,
     pub filesize: Option<f64>,
-    #[cfg(feature = "yt-dlp")]
     pub filesize_approx: Option<f64>,
     pub format: Option<String>,
     pub format_id: Option<String>,
@@ -120,13 +119,11 @@ pub struct JsonOutput {
     pub dislike_count: Option<i64>,
     pub display_id: Option<String>,
     pub duration: Option<Value>,
-    #[cfg(feature = "yt-dlp")]
     pub duration_string: Option<String>,
     pub end_time: Option<String>,
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
-    #[cfg(feature = "yt-dlp")]
     pub epoch: Option<i64>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
@@ -181,7 +178,6 @@ pub struct Playlist {
     pub uploader_url: Option<String>,
     pub webpage_url: Option<String>,
     pub webpage_url_basename: Option<String>,
-    #[cfg(feature = "yt-dlp")]
     pub thumbnails: Option<Vec<Thumbnail>>,
 }
 
@@ -216,19 +212,16 @@ pub struct SingleVideo {
     pub display_id: Option<String>,
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub duration: Option<Value>,
-    #[cfg(feature = "yt-dlp")]
     pub duration_string: Option<String>,
     pub end_time: Option<String>,
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
-    #[cfg(feature = "yt-dlp")]
     pub epoch: Option<i64>,
     pub ext: Option<String>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
     pub filesize: Option<i64>,
-    #[cfg(feature = "yt-dlp")]
     pub filesize_approx: Option<f64>,
     pub format: Option<String>,
     pub format_id: Option<String>,
@@ -334,16 +327,14 @@ pub enum Protocol {
     M3U8Native,
     #[serde(rename = "http_dash_segments")]
     HttpDashSegments,
-    #[cfg(feature = "yt-dlp")]
     #[serde(rename = "mhtml")]
     Mhtml,
-    #[cfg(feature = "yt-dlp")]
     #[serde(rename = "https+https")]
     HttpsHttps,
-    #[cfg(feature = "yt-dlp")]
     #[serde(rename = "http_dash_segments+https")]
     HttpDashSegmentsHttps,
-    #[cfg(feature = "yt-dlp")]
+    #[serde(rename = "http_dash_segments+http_dash_segments")]
+    HttpDashSegmentsHttpDashSegments,
     #[serde(rename = "m3u8_native+m3u8_native")]
     M3U8NativeM3U8Native,
 }

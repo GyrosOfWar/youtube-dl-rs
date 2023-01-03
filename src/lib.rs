@@ -225,7 +225,6 @@ pub struct YoutubeDl {
     url: String,
     process_timeout: Option<Duration>,
     extract_audio: bool,
-    #[cfg(feature = "yt-dlp")]
     download: bool,
 		playlist_items: Option<String>,
     extra_args: Vec<String>,
@@ -247,9 +246,7 @@ impl YoutubeDl {
             referer: None,
             process_timeout: None,
             extract_audio: false,
-            #[cfg(feature = "yt-dlp")]
             download: false,
-            #[cfg(feature = "yt-dlp")]
             playlist_items: None,
             extra_args: Vec::new(),
         }
@@ -327,7 +324,6 @@ impl YoutubeDl {
         self
     }
   
-    #[cfg(feature = "yt-dlp")]
     /// Specify whether to download videos, instead of just listing them.
     ///
     /// Note that no progress will be logged or emitted.
@@ -416,7 +412,6 @@ impl YoutubeDl {
 
         args.push("-J");
 
-        #[cfg(feature = "yt-dlp")]
         if self.download {
             args.push("--no-simulate");
             args.push("--no-progress");
@@ -638,7 +633,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "yt-dlp")]
     fn test_with_yt_dlp() {
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
             .youtube_dl_path("yt-dlp")
@@ -649,7 +643,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "yt-dlp")]
     fn test_with_yt_dlp_download() {
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
             .youtube_dl_path("yt-dlp")
