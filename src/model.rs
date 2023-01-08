@@ -54,7 +54,10 @@ pub struct Format {
     pub player_url: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
+    #[cfg(feature = "youtube-dl")]
     pub quality: Option<i64>,
+    #[cfg(feature = "yt-dlp")]
+    pub quality: Option<f64>,
     pub resolution: Option<String>,
     pub source_preference: Option<i64>,
     pub stretched_ratio: Option<f64>,
