@@ -58,8 +58,8 @@ pub struct Format {
     pub player_url: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
-		#[serde(default, deserialize_with = "int_or_string")]
-    pub quality: Option<IntOrString>,
+		//#[serde(default, deserialize_with = "int_or_string")]
+    pub quality: Option<f64>,
     pub resolution: Option<String>,
     pub source_preference: Option<i64>,
     pub stretched_ratio: Option<f64>,
@@ -339,6 +339,7 @@ pub enum Protocol {
     M3U8NativeM3U8Native,
 }
 
+#[allow(dead_code)]
 fn int_or_string<'de, D>(deserializer: D) -> Result<Option<IntOrString>, D::Error>
 	where D: de::Deserializer<'de>
 {
