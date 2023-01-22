@@ -1,4 +1,6 @@
 # Unreleased
+
+# 0.8.0
 - BREAKING CHANGE: Removed support for youtube-dl. Now only supports `yt-dlp`
 - feat: Add helper to download `yt-dlp` programatically with `reqwest`.
 - ci: set up GitHub Actions
