@@ -259,6 +259,7 @@ pub struct YoutubeDl {
     extra_args: Vec<String>,
     output_template: Option<String>,
     output_directory: Option<String>,
+    debug: bool,
 }
 
 impl YoutubeDl {
@@ -282,6 +283,7 @@ impl YoutubeDl {
             extra_args: Vec::new(),
             output_template: None,
             output_directory: None,
+            debug: false,
         }
     }
 
@@ -391,9 +393,14 @@ impl YoutubeDl {
 
     /// Specify the output directory. Only relevant for downloading.
     /// (the `-P` command line switch)
-
     pub fn output_directory<S: Into<String>>(&mut self, arg: S) -> &mut Self {
         self.output_directory = Some(arg.into());
+        self
+    }
+
+    #[cfg(test)]
+    pub fn debug(&mut self, arg: bool) -> &mut Self {
+        self.debug = arg;
         self
     }
 
@@ -516,6 +523,11 @@ impl YoutubeDl {
         };
 
         if exit_code.success() {
+            if self.debug {
+                let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
+                eprintln!("{}", string);
+            }
+
             let value: Value = serde_json::from_reader(stdout.as_slice())?;
 
             let is_playlist = value["_type"] == json!("playlist");
@@ -702,13 +714,13 @@ mod tests {
         // yee
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
             .download(true)
+            .debug(true)
             .output_template("yee")
             .run()
             .unwrap()
             .into_single_video()
             .unwrap();
         assert_eq!(output.id, "q6EoRBvdVPQ");
-        let _files: Vec<_> = dbg!(std::fs::read_dir(".").unwrap().collect());
         assert!(Path::new("yee.webm").is_file() || Path::new("yee").is_file());
         let _ = std::fs::remove_file("yee.webm");
         let _ = std::fs::remove_file("yee");
