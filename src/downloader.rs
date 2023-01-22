@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use crate::Error;
-use log::info;
 use serde::Deserialize;
 use tokio::{
     fs::{self, File},
@@ -72,7 +71,8 @@ impl YoutubeDlFetcher {
             .get(url)
             .header("User-Agent", "youtube-dl-rs")
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
         let release: GithubRelease = if log::log_enabled!(log::Level::Debug) {
             let text = response.text().await?;
             log::debug!("received response from github: {}", text);
@@ -81,7 +81,7 @@ impl YoutubeDlFetcher {
             response.json().await?
         };
 
-        info!("received response from github: {:?}", release);
+        log::debug!("received response from github: {:?}", release);
 
         let url = release
             .assets
@@ -101,7 +101,7 @@ impl YoutubeDlFetcher {
     /// the executable is downloaded to that directory, or a file, in which case the file is created.
     pub async fn download(&self, destination: impl AsRef<Path>) -> Result<PathBuf, Error> {
         let release = self.find_newest_release().await?;
-        log::info!("found release: {} at URL {}", release.tag, release.url);
+        log::debug!("found release: {} at URL {}", release.tag, release.url);
         let destination = destination.as_ref();
 
         if !destination.exists() {
@@ -115,7 +115,12 @@ impl YoutubeDlFetcher {
         };
 
         let mut file = create_file(&path).await?;
-        let mut response = self.client.get(release.url).send().await?;
+        let mut response = self
+            .client
+            .get(release.url)
+            .send()
+            .await?
+            .error_for_status()?;
 
         while let Some(chunk) = response.chunk().await? {
             file.write_all(&chunk).await?;
