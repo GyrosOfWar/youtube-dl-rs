@@ -292,7 +292,7 @@ impl YoutubeDl {
         Self::new(options.to_string())
     }
 
-    /// Set the path to the `youtube-dl` executable.
+    /// Set the path to the `youtube-dl` or `yt-dlp executable.
     pub fn youtube_dl_path<P: AsRef<Path>>(&mut self, youtube_dl_path: P) -> &mut Self {
         self.youtube_dl_path = Some(youtube_dl_path.as_ref().to_owned());
         self
