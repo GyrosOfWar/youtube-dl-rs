@@ -3,7 +3,7 @@
 
 #![allow(missing_docs)]
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -22,7 +22,7 @@ pub struct Comment {
     pub id: Option<String>,
     pub parent: Option<String>,
     pub text: Option<String>,
-    pub timestamp: Option<i64>,
+    pub timestamp: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
@@ -35,9 +35,6 @@ pub struct Format {
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub ext: Option<String>,
     pub filesize: Option<f64>,
-    #[cfg(feature = "youtube-dl")]
-    pub filesize_approx: Option<String>,
-    #[cfg(feature = "yt-dlp")]
     pub filesize_approx: Option<f64>,
     pub format: Option<String>,
     pub format_id: Option<String>,
@@ -45,7 +42,7 @@ pub struct Format {
     pub fps: Option<f64>,
     pub fragment_base_url: Option<String>,
     pub fragments: Option<Vec<Fragment>>,
-    pub height: Option<i64>,
+    pub height: Option<f64>,
     pub http_headers: Option<BTreeMap<String, Option<String>>>,
     pub language: Option<String>,
     pub language_preference: Option<i64>,
@@ -54,9 +51,6 @@ pub struct Format {
     pub player_url: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
-    #[cfg(feature = "youtube-dl")]
-    pub quality: Option<i64>,
-    #[cfg(feature = "yt-dlp")]
     pub quality: Option<f64>,
     pub resolution: Option<String>,
     pub source_preference: Option<i64>,
@@ -66,21 +60,7 @@ pub struct Format {
     pub vbr: Option<f64>,
     #[serde(default, deserialize_with = "parse_codec")]
     pub vcodec: Option<String>,
-    pub width: Option<i64>,
-}
-
-// Codec values are set explicitly, and when there is no codec, it is sometimes
-// given as "none" (instead of simply missing from the JSON).
-// Default decoding in this case would result in `Some("none".to_string())`, which is why
-// this custom parse function exists.
-fn parse_codec<'de, D>(d: D) -> Result<Option<String>, D::Error>
-where
-    D: serde::de::Deserializer<'de>,
-{
-    serde::de::Deserialize::deserialize(d).map(|x: Option<_>| match x.unwrap_or_default() {
-        Some(ref s) if s == "none" => None,
-        x => x,
-    })
+    pub width: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
@@ -117,13 +97,11 @@ pub struct JsonOutput {
     pub dislike_count: Option<i64>,
     pub display_id: Option<String>,
     pub duration: Option<Value>,
-    #[cfg(feature = "yt-dlp")]
     pub duration_string: Option<String>,
     pub end_time: Option<String>,
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
-    #[cfg(feature = "yt-dlp")]
     pub epoch: Option<i64>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
@@ -153,7 +131,7 @@ pub struct JsonOutput {
     pub tags: Option<Vec<Option<String>>>,
     pub thumbnail: Option<String>,
     pub thumbnails: Option<Vec<Thumbnail>>,
-    pub timestamp: Option<i64>,
+    pub timestamp: Option<f64>,
     pub title: String,
     pub track: Option<String>,
     pub track_id: Option<String>,
@@ -178,7 +156,6 @@ pub struct Playlist {
     pub uploader_url: Option<String>,
     pub webpage_url: Option<String>,
     pub webpage_url_basename: Option<String>,
-    #[cfg(feature = "yt-dlp")]
     pub thumbnails: Option<Vec<Thumbnail>>,
 }
 
@@ -213,21 +190,16 @@ pub struct SingleVideo {
     pub display_id: Option<String>,
     pub downloader_options: Option<BTreeMap<String, Value>>,
     pub duration: Option<Value>,
-    #[cfg(feature = "yt-dlp")]
     pub duration_string: Option<String>,
     pub end_time: Option<String>,
     pub episode: Option<String>,
     pub episode_id: Option<String>,
     pub episode_number: Option<i32>,
-    #[cfg(feature = "yt-dlp")]
     pub epoch: Option<i64>,
     pub ext: Option<String>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
     pub filesize: Option<i64>,
-    #[cfg(feature = "youtube-dl")]
-    pub filesize_approx: Option<String>,
-    #[cfg(feature = "yt-dlp")]
     pub filesize_approx: Option<f64>,
     pub format: Option<String>,
     pub format_id: Option<String>,
@@ -237,7 +209,7 @@ pub struct SingleVideo {
     pub fragment_base_url: Option<String>,
     pub fragments: Option<Vec<Fragment>>,
     pub genre: Option<String>,
-    pub height: Option<i64>,
+    pub height: Option<f64>,
     pub http_headers: Option<BTreeMap<String, Option<String>>>,
     pub id: String,
     pub is_live: Option<bool>,
@@ -257,7 +229,7 @@ pub struct SingleVideo {
     pub playlist_uploader_id: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
-    pub quality: Option<i64>,
+    pub quality: Option<f64>,
     pub release_date: Option<String>,
     pub release_year: Option<i64>,
     pub repost_count: Option<i64>,
@@ -275,7 +247,7 @@ pub struct SingleVideo {
     pub tbr: Option<f64>,
     pub thumbnail: Option<String>,
     pub thumbnails: Option<Vec<Thumbnail>>,
-    pub timestamp: Option<i64>,
+    pub timestamp: Option<f64>,
     pub title: String,
     pub track: Option<String>,
     pub track_id: Option<String>,
@@ -289,7 +261,7 @@ pub struct SingleVideo {
     pub vcodec: Option<String>,
     pub view_count: Option<i64>,
     pub webpage_url: Option<String>,
-    pub width: Option<i64>,
+    pub width: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
@@ -302,11 +274,11 @@ pub struct Subtitle {
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Thumbnail {
     pub filesize: Option<i64>,
-    pub height: Option<i64>,
+    pub height: Option<f64>,
     pub id: Option<String>,
     pub preference: Option<i64>,
     pub url: Option<String>,
-    pub width: Option<i64>,
+    pub width: Option<f64>,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize, Debug)]
@@ -333,13 +305,28 @@ pub enum Protocol {
     M3U8Native,
     #[serde(rename = "http_dash_segments")]
     HttpDashSegments,
-    #[cfg(feature = "yt-dlp")]
     #[serde(rename = "mhtml")]
     Mhtml,
-    #[cfg(feature = "yt-dlp")]
     #[serde(rename = "https+https")]
     HttpsHttps,
-    #[cfg(feature = "yt-dlp")]
     #[serde(rename = "http_dash_segments+https")]
     HttpDashSegmentsHttps,
+    #[serde(rename = "http_dash_segments+http_dash_segments")]
+    HttpDashSegmentsHttpDashSegments,
+    #[serde(rename = "m3u8_native+m3u8_native")]
+    M3U8NativeM3U8Native,
+}
+
+// Codec values are set explicitly, and when there is no codec, it is sometimes
+// given as "none" (instead of simply missing from the JSON).
+// Default decoding in this case would result in `Some("none".to_string())`, which is why
+// this custom parse function exists.
+fn parse_codec<'de, D>(d: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Deserialize::deserialize(d).map(|x: Option<_>| match x.unwrap_or_default() {
+        Some(s) if s == "none" => None,
+        x => x,
+    })
 }

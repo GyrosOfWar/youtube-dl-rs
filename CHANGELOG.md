@@ -1,3 +1,8 @@
+# Unreleased
+- BREAKING CHANGE: Removed support for youtube-dl. Now only supports `yt-dlp`
+- feat: Add helper to download `yt-dlp` programatically with `reqwest`.
+- ci: set up GitHub Actions
+
 # 0.7.0
 - Added async support via `tokio`, disabled per default. You can opt-in via the `tokio` feature.
 - Add feature `yt-dlp` to support yt-dlp

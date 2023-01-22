@@ -3,7 +3,6 @@
 //! Example usage:
 //! ```rust
 //! use youtube_dl::YoutubeDl;
-
 //! let output = YoutubeDl::new("https://www.youtube.com/watch?v=VFbhKZFzbzk")
 //!   .socket_timeout("15")
 //!   .run()
@@ -29,9 +28,15 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+#[cfg(feature = "downloader")]
+/// Exposes a function to download the latest version of youtube-dl/yt-dlp.
+pub mod downloader;
 pub mod model;
 
 pub use crate::model::*;
+
+#[cfg(feature = "downloader")]
+pub use crate::downloader::download_yt_dlp;
 
 /// Data returned by `YoutubeDl::run`. Output can either be a single video or a playlist of videos.
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -43,18 +48,19 @@ pub enum YoutubeDlOutput {
 }
 
 impl YoutubeDlOutput {
-    #[cfg(test)]
-    fn to_single_video(self) -> SingleVideo {
+    /// Get the inner content as a single video.
+    pub fn into_single_video(self) -> Option<SingleVideo> {
         match self {
-            YoutubeDlOutput::SingleVideo(video) => *video,
-            _ => panic!("this is a playlist, not a single video"),
+            YoutubeDlOutput::SingleVideo(video) => Some(*video),
+            _ => None,
         }
     }
-    #[cfg(test)]
-    fn to_playlist(self) -> Playlist {
+
+    /// Get the inner content as a playlist.
+    pub fn into_playlist(self) -> Option<Playlist> {
         match self {
-            YoutubeDlOutput::Playlist(playlist) => *playlist,
-            _ => panic!("this is a playlist, not a single video"),
+            YoutubeDlOutput::Playlist(playlist) => Some(*playlist),
+            _ => None,
         }
     }
 }
@@ -78,6 +84,14 @@ pub enum Error {
 
     /// Process-level timeout expired.
     ProcessTimeout,
+
+    /// HTTP error (when fetching youtube-dl/yt-dlp)
+    #[cfg(feature = "downloader")]
+    Http(reqwest::Error),
+
+    /// When no GitHub release could be found to download the youtube-dl/yt-dlp executable.
+    #[cfg(feature = "downloader")]
+    NoReleaseFound,
 }
 
 impl From<std::io::Error> for Error {
@@ -92,6 +106,13 @@ impl From<serde_json::Error> for Error {
     }
 }
 
+#[cfg(feature = "downloader")]
+impl From<reqwest::Error> for Error {
+    fn from(err: reqwest::Error) -> Self {
+        Error::Http(err)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -101,6 +122,10 @@ impl fmt::Display for Error {
                 write!(f, "non-zero exit code: {}, stderr: {}", code, stderr)
             }
             Self::ProcessTimeout => write!(f, "process timed out"),
+            #[cfg(feature = "downloader")]
+            Self::Http(err) => write!(f, "http error: {}", err),
+            #[cfg(feature = "downloader")]
+            Self::NoReleaseFound => write!(f, "no github release found for specified binary"),
         }
     }
 }
@@ -112,6 +137,10 @@ impl StdError for Error {
             Self::Json(err) => Some(err),
             Self::ExitCode { .. } => None,
             Self::ProcessTimeout => None,
+            #[cfg(feature = "downloader")]
+            Self::Http(err) => Some(err),
+            #[cfg(feature = "downloader")]
+            Self::NoReleaseFound => None,
         }
     }
 }
@@ -225,10 +254,12 @@ pub struct YoutubeDl {
     url: String,
     process_timeout: Option<Duration>,
     extract_audio: bool,
-    #[cfg(feature = "yt-dlp")]
     download: bool,
-		playlist_items: Option<String>,
+    playlist_items: Option<String>,
     extra_args: Vec<String>,
+    output_template: Option<String>,
+    output_directory: Option<String>,
+    debug: bool,
 }
 
 impl YoutubeDl {
@@ -247,11 +278,12 @@ impl YoutubeDl {
             referer: None,
             process_timeout: None,
             extract_audio: false,
-            #[cfg(feature = "yt-dlp")]
             download: false,
-            #[cfg(feature = "yt-dlp")]
             playlist_items: None,
             extra_args: Vec::new(),
+            output_template: None,
+            output_directory: None,
+            debug: false,
         }
     }
 
@@ -260,7 +292,7 @@ impl YoutubeDl {
         Self::new(options.to_string())
     }
 
-    /// Set the path to the `youtube-dl` executable.
+    /// Set the path to the `youtube-dl` or `yt-dlp executable.
     pub fn youtube_dl_path<P: AsRef<Path>>(&mut self, youtube_dl_path: P) -> &mut Self {
         self.youtube_dl_path = Some(youtube_dl_path.as_ref().to_owned());
         self
@@ -326,22 +358,21 @@ impl YoutubeDl {
         self.extract_audio = extract_audio;
         self
     }
-  
-    #[cfg(feature = "yt-dlp")]
+
     /// Specify whether to download videos, instead of just listing them.
     ///
     /// Note that no progress will be logged or emitted.
+
     pub fn download(&mut self, download: bool) -> &mut Self {
         self.download = download;
         self
     }
 
-		/// Set the `--playlist-items` command line flag.
-		pub fn playlist_items(&mut self, index: u32) -> &mut Self {
-			self.playlist_items = Some(index.to_string());
-			self
-		}
-
+    /// Set the `--playlist-items` command line flag.
+    pub fn playlist_items(&mut self, index: u32) -> &mut Self {
+        self.playlist_items = Some(index.to_string());
+        self
+    }
 
     /// Add an additional custom CLI argument.
     ///
@@ -352,10 +383,30 @@ impl YoutubeDl {
         self
     }
 
+    /// Specify the filename template. Only relevant for downloading.
+    /// (referred to as "output template" by [youtube-dl docs](https://github.com/ytdl-org/youtube-dl#output-template))
+    pub fn output_template<S: Into<String>>(&mut self, arg: S) -> &mut Self {
+        self.output_template = Some(arg.into());
+        self
+    }
+
+    /// Specify the output directory. Only relevant for downloading.
+    /// (the `-P` command line switch)
+    pub fn output_directory<S: Into<String>>(&mut self, arg: S) -> &mut Self {
+        self.output_directory = Some(arg.into());
+        self
+    }
+
+    #[cfg(test)]
+    pub fn debug(&mut self, arg: bool) -> &mut Self {
+        self.debug = arg;
+        self
+    }
+
     fn path(&self) -> &Path {
         match &self.youtube_dl_path {
             Some(path) => path,
-            None => Path::new("youtube-dl"),
+            None => Path::new("yt-dlp"),
         }
     }
 
@@ -410,13 +461,22 @@ impl YoutubeDl {
             args.push(playlist_items);
         }
 
+        if let Some(output_template) = &self.output_template {
+            args.push("-o");
+            args.push(output_template);
+        }
+
+        if let Some(output_dir) = &self.output_directory {
+            args.push("-P");
+            args.push(output_dir);
+        }
+
         for extra_arg in &self.extra_args {
             args.push(extra_arg);
         }
 
         args.push("-J");
 
-        #[cfg(feature = "yt-dlp")]
         if self.download {
             args.push("--no-simulate");
             args.push("--no-progress");
@@ -442,8 +502,6 @@ impl YoutubeDl {
             .stderr(Stdio::piped())
             .args(process_args)
             .spawn()?;
-				let mut x = Command::new(path);
-				x.args(self.process_args());
 
         // Continually read from stdout so that it does not fill up with large output and hang forever.
         // We don't need to do this for stderr since only stdout has potentially giant JSON.
@@ -464,6 +522,11 @@ impl YoutubeDl {
         };
 
         if exit_code.success() {
+            if self.debug {
+                let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
+                eprintln!("{}", string);
+            }
+
             let value: Value = serde_json::from_reader(stdout.as_slice())?;
 
             let is_playlist = value["_type"] == json!("playlist");
@@ -523,6 +586,11 @@ impl YoutubeDl {
         };
 
         if exit_code.success() {
+            if self.debug {
+                let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
+                eprintln!("{}", string);
+            }
+
             let value: Value = serde_json::from_reader(stdout.as_slice())?;
 
             let is_playlist = value["_type"] == json!("playlist");
@@ -550,6 +618,8 @@ impl YoutubeDl {
 #[cfg(test)]
 mod tests {
     use crate::{SearchOptions, YoutubeDl};
+
+    use std::path::Path;
     use std::time::Duration;
 
     #[test]
@@ -558,7 +628,8 @@ mod tests {
             .socket_timeout("15")
             .run()
             .unwrap()
-            .to_single_video();
+            .into_single_video()
+            .unwrap();
         assert_eq!(output.id, "7XGyWcuYVrg");
     }
 
@@ -569,7 +640,8 @@ mod tests {
             .process_timeout(Duration::from_secs(15))
             .run()
             .unwrap()
-            .to_single_video();
+            .into_single_video()
+            .unwrap();
         assert_eq!(output.id, "7XGyWcuYVrg");
     }
 
@@ -589,18 +661,9 @@ mod tests {
             .process_timeout(Duration::from_secs(15))
             .run()
             .unwrap()
-            .to_playlist();
+            .into_playlist()
+            .unwrap();
         assert_eq!(output.entries.unwrap().first().unwrap().id, "dQw4w9WgXcQ");
-    }
-
-    #[test]
-    fn test_video_with_season() {
-        let output = YoutubeDl::new("https://youtube.com/watch?v=sAD1nayZ9dk")
-            .run()
-            .unwrap()
-            .to_single_video();
-
-        assert_eq!(output.season_number, Some(2));
     }
 
     #[test]
@@ -608,7 +671,8 @@ mod tests {
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=WhWc3b3KhnY")
             .run()
             .unwrap()
-            .to_single_video();
+            .into_single_video()
+            .unwrap();
 
         let mut none_counter = 0;
         for format in output.formats.unwrap() {
@@ -632,31 +696,47 @@ mod tests {
                 .run_async()
                 .await
                 .unwrap()
-                .to_single_video()
+                .into_single_video()
+                .unwrap()
         });
         assert_eq!(output.id, "7XGyWcuYVrg");
     }
 
     #[test]
-    #[cfg(feature = "yt-dlp")]
     fn test_with_yt_dlp() {
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
-            .youtube_dl_path("yt-dlp")
             .run()
             .unwrap()
-            .to_single_video();
+            .into_single_video()
+            .unwrap();
         assert_eq!(output.id, "7XGyWcuYVrg");
     }
 
     #[test]
-    #[cfg(feature = "yt-dlp")]
-    fn test_with_yt_dlp_download() {
-        let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
-            .youtube_dl_path("yt-dlp")
+
+    fn test_download_with_yt_dlp() {
+        // yee
+        let output = YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
             .download(true)
+            .debug(true)
+            .output_template("yee")
             .run()
             .unwrap()
-            .to_single_video();
-        assert_eq!(output.id, "7XGyWcuYVrg");
+            .into_single_video()
+            .unwrap();
+        assert_eq!(output.id, "q6EoRBvdVPQ");
+        assert!(Path::new("yee.webm").is_file() || Path::new("yee").is_file());
+        let _ = std::fs::remove_file("yee.webm");
+        let _ = std::fs::remove_file("yee");
+    }
+
+    #[test]
+
+    fn test_timestamp_parse_error() {
+        let output = YoutubeDl::new("https://www.reddit.com/r/loopdaddy/comments/baguqq/first_time_poster_here_couldnt_resist_sharing_my")
+            .output_template("video")
+            .run()
+            .unwrap();
+        assert_eq!(output.into_single_video().unwrap().width, Some(608.0));
     }
 }

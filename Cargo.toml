@@ -2,25 +2,28 @@
 name = "youtube_dl"
 version = "0.7.0"
 authors = ["Martin Tomasi <martin.tomasi@gmail.com>"]
-edition = "2018"
-description = "Runs youtube-dl and parses its JSON output."
+edition = "2021"
+description = "Runs yt-dlp and parses its JSON output."
 license = "MIT/Apache-2.0"
 repository = "https://github.com/GyrosOfWar/youtube-dl-rs"
 homepage = "https://github.com/GyrosOfWar/youtube-dl-rs"
 categories = ["multimedia::video"]
-keywords = ["youtube-dl", "youtube"]
+keywords = ["youtube-dl", "youtube", "yt-dlp"]
 
 [features]
-default = ["youtube-dl"]
-youtube-dl = []
-yt-dlp = []
+default = []
+downloader = ["reqwest", "tokio"]
 
 [dependencies]
-serde = { version = "1.0.124", features = ["derive"] }
-serde_json = "1.0.64"
-log = "0.4.14"
-wait-timeout = "0.2.0"
-tokio = { version = "1.0", optional = true, features = ["io-util", "process", "time"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+wait-timeout = "0.2"
+tokio = { version = "1", optional = true, features = ["io-util", "process", "time", "fs"] }
+reqwest = { version = "0.11", optional = true, features = ["json"] }
+
+[dev-dependencies]
+env_logger = "0.10"
 
 [dev-dependencies.tokio]
 version = "1"
@@ -29,3 +32,7 @@ features = ["rt", "rt-multi-thread", "macros"]
 [[example]]
 name = "async"
 required-features = ["tokio"]
+
+[[example]]
+name = "downloader"
+required-features = ["downloader"]

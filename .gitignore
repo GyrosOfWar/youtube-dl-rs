@@ -2,3 +2,9 @@
 **/*.rs.bk
 test.json
 Cargo.lock
+*.mp4
+*.part
+*.webm
+*.mkv
+/yt-dlp.exe
+/yt-dlp

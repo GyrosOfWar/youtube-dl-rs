@@ -1,13 +1,10 @@
-use youtube_dl::{YoutubeDl, YoutubeDlOutput};
+use youtube_dl::YoutubeDl;
 
 fn main() {
     let output = YoutubeDl::new("https://www.youtube.com/watch?v=VFbhKZFzbzk")
         .socket_timeout("15")
         .run()
         .unwrap();
-    let title = match output {
-        YoutubeDlOutput::SingleVideo(video) => video.title,
-        _ => panic!("single video should not be a playlist"),
-    };
+    let title = output.into_single_video().unwrap().title;
     println!("Video title: {}", title);
 }
