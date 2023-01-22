@@ -385,7 +385,6 @@ impl YoutubeDl {
 
     /// Specify the filename template. Only relevant for downloading.
     /// (referred to as "output template" by [youtube-dl docs](https://github.com/ytdl-org/youtube-dl#output-template))
-
     pub fn output_template<S: Into<String>>(&mut self, arg: S) -> &mut Self {
         self.output_template = Some(arg.into());
         self
@@ -587,6 +586,11 @@ impl YoutubeDl {
         };
 
         if exit_code.success() {
+            if self.debug {
+                let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
+                eprintln!("{}", string);
+            }
+
             let value: Value = serde_json::from_reader(stdout.as_slice())?;
 
             let is_playlist = value["_type"] == json!("playlist");

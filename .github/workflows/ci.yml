@@ -34,8 +34,8 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Build
-        run: cargo build --verbose
+      - name: Check compilation
+        run: cargo check --all-features --all-targets --verbose
 
       - name: Run tests
         run: cargo hack test --each-feature
