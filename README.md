@@ -1,4 +1,7 @@
 # youtube-dl-rs
+
+[<img alt="Crates.io" src="https://img.shields.io/crates/v/youtube_dl">](https://crates.io/crates/youtube_dl)
+
 Runs youtube-dl and parses its JSON output. Example:
 ```rust
 use youtube_dl::YoutubeDl;

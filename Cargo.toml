@@ -2,8 +2,8 @@
 name = "youtube_dl"
 version = "0.7.0"
 authors = ["Martin Tomasi <martin.tomasi@gmail.com>"]
-edition = "2018"
-description = "Runs youtube-dl and parses its JSON output."
+edition = "2021"
+description = "Runs yt-dlp and parses its JSON output."
 license = "MIT/Apache-2.0"
 repository = "https://github.com/GyrosOfWar/youtube-dl-rs"
 homepage = "https://github.com/GyrosOfWar/youtube-dl-rs"
@@ -12,7 +12,6 @@ keywords = ["youtube-dl", "youtube", "yt-dlp"]
 
 [features]
 default = []
-youtube-dl = []
 downloader = ["reqwest", "tokio"]
 
 [dependencies]

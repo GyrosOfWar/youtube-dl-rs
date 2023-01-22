@@ -254,7 +254,6 @@ pub struct YoutubeDl {
     url: String,
     process_timeout: Option<Duration>,
     extract_audio: bool,
-    #[cfg(not(feature = "youtube-dl"))]
     download: bool,
     playlist_items: Option<String>,
     extra_args: Vec<String>,
@@ -278,10 +277,9 @@ impl YoutubeDl {
             referer: None,
             process_timeout: None,
             extract_audio: false,
+            download: false,
             playlist_items: None,
             extra_args: Vec::new(),
-            #[cfg(not(feature = "youtube-dl"))]
-            download: false,
             output_template: None,
             output_directory: None,
         }
@@ -362,7 +360,7 @@ impl YoutubeDl {
     /// Specify whether to download videos, instead of just listing them.
     ///
     /// Note that no progress will be logged or emitted.
-    #[cfg(not(feature = "youtube-dl"))]
+
     pub fn download(&mut self, download: bool) -> &mut Self {
         self.download = download;
         self
@@ -385,7 +383,7 @@ impl YoutubeDl {
 
     /// Specify the filename template. Only relevant for downloading.
     /// (referred to as "output template" by [youtube-dl docs](https://github.com/ytdl-org/youtube-dl#output-template))
-    #[cfg(not(feature = "youtube-dl"))]
+
     pub fn output_template<S: Into<String>>(&mut self, arg: S) -> &mut Self {
         self.output_template = Some(arg.into());
         self
@@ -393,21 +391,12 @@ impl YoutubeDl {
 
     /// Specify the output directory. Only relevant for downloading.
     /// (the `-P` command line switch)
-    #[cfg(not(feature = "youtube-dl"))]
+
     pub fn output_directory<S: Into<String>>(&mut self, arg: S) -> &mut Self {
         self.output_directory = Some(arg.into());
         self
     }
 
-    #[cfg(feature = "youtube-dl")]
-    fn path(&self) -> &Path {
-        match &self.youtube_dl_path {
-            Some(path) => path,
-            None => Path::new("youtube-dl"),
-        }
-    }
-
-    #[cfg(not(feature = "youtube-dl"))]
     fn path(&self) -> &Path {
         match &self.youtube_dl_path {
             Some(path) => path,
@@ -482,7 +471,6 @@ impl YoutubeDl {
 
         args.push("-J");
 
-        #[cfg(not(feature = "youtube-dl"))]
         if self.download {
             args.push("--no-simulate");
             args.push("--no-progress");
@@ -614,7 +602,7 @@ impl YoutubeDl {
 #[cfg(test)]
 mod tests {
     use crate::{SearchOptions, YoutubeDl};
-    #[cfg(not(feature = "youtube-dl"))]
+
     use std::path::Path;
     use std::time::Duration;
 
@@ -709,7 +697,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "youtube-dl"))]
+
     fn test_download_with_yt_dlp() {
         // yee
         let output = YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
@@ -727,23 +715,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "youtube-dl"))]
+
     fn test_timestamp_parse_error() {
         let output = YoutubeDl::new("https://www.reddit.com/r/loopdaddy/comments/baguqq/first_time_poster_here_couldnt_resist_sharing_my")
             .output_template("video")
             .run()
             .unwrap();
-        assert_eq!(output.into_single_video().unwrap().width, Some(404.0));
-    }
-
-    #[test]
-    #[cfg(feature = "youtube-dl")]
-    fn test_with_youtube_dl() {
-        let output = YoutubeDl::new("https://www.youtube.com/watch?v=7XGyWcuYVrg")
-            .run()
-            .unwrap()
-            .into_single_video()
-            .unwrap();
-        assert_eq!(output.id, "7XGyWcuYVrg");
+        assert_eq!(output.into_single_video().unwrap().width, Some(608.0));
     }
 }

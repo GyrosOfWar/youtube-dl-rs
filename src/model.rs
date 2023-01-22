@@ -22,7 +22,7 @@ pub struct Comment {
     pub id: Option<String>,
     pub parent: Option<String>,
     pub text: Option<String>,
-    pub timestamp: Option<i64>,
+    pub timestamp: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
@@ -51,7 +51,7 @@ pub struct Format {
     pub player_url: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
-    pub quality: Option<i64>,
+    pub quality: Option<f64>,
     pub resolution: Option<String>,
     pub source_preference: Option<i64>,
     pub stretched_ratio: Option<f64>,
@@ -311,6 +311,10 @@ pub enum Protocol {
     HttpsHttps,
     #[serde(rename = "http_dash_segments+https")]
     HttpDashSegmentsHttps,
+    #[serde(rename = "http_dash_segments+http_dash_segments")]
+    HttpDashSegmentsHttpDashSegments,
+    #[serde(rename = "m3u8_native+m3u8_native")]
+    M3U8NativeM3U8Native,
 }
 
 // Codec values are set explicitly, and when there is no codec, it is sometimes
