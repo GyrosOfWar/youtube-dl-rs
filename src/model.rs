@@ -229,7 +229,7 @@ pub struct SingleVideo {
     pub playlist_uploader_id: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
-    pub quality: Option<i64>,
+    pub quality: Option<f64>,
     pub release_date: Option<String>,
     pub release_year: Option<i64>,
     pub repost_count: Option<i64>,
