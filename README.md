@@ -2,7 +2,10 @@
 
 [<img alt="Crates.io" src="https://img.shields.io/crates/v/youtube_dl">](https://crates.io/crates/youtube_dl)
 
-Runs youtube-dl and parses its JSON output. Example:
+**NOTE**: The name for this library is a bit misleading, it currently does not support `youtube-dl` as its development seems to be very slow recently,
+it does support `yt-dlp`, which has diverged from `youtube-dl` in some ways, but sees a lot more development.
+
+Runs yt-dlp and parses its JSON output. Example:
 ```rust
 use youtube_dl::YoutubeDl;
 
