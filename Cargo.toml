@@ -36,3 +36,6 @@ required-features = ["tokio"]
 [[example]]
 name = "downloader"
 required-features = ["downloader"]
+
+[package.metadata.docs.rs]
+all-features = true
