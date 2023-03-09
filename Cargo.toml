@@ -11,8 +11,10 @@ categories = ["multimedia::video"]
 keywords = ["youtube-dl", "youtube", "yt-dlp"]
 
 [features]
-default = []
+default = ["native-tls"]
 downloader = ["reqwest", "tokio"]
+native-tls = ["reqwest/native-tls"]
+rustls-tls = ["reqwest/rustls-tls"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
