@@ -146,7 +146,7 @@ pub struct JsonOutput {
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Playlist {
-    pub entries: Option<Vec<SingleVideo>>,
+    pub entries: Option<Vec<Option<SingleVideo>>>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
     pub id: Option<String>,
