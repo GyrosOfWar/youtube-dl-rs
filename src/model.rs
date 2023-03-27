@@ -248,7 +248,7 @@ pub struct SingleVideo {
     pub thumbnail: Option<String>,
     pub thumbnails: Option<Vec<Thumbnail>>,
     pub timestamp: Option<f64>,
-    pub title: String,
+    pub title: Option<String>,
     pub track: Option<String>,
     pub track_id: Option<String>,
     pub track_number: Option<String>,
