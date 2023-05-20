@@ -12,7 +12,7 @@ keywords = ["youtube-dl", "youtube", "yt-dlp"]
 
 [features]
 default = ["native-tls"]
-downloader = ["reqwest", "tokio"]
+downloader = ["reqwest", "tokio", "native-tls"]
 native-tls = ["reqwest/native-tls"]
 rustls-tls = ["reqwest/rustls-tls"]
 
