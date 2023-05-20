@@ -1,4 +1,5 @@
 # Unreleased
+- feat: add support for `rustls-tls` feature of the transitive reqwest dependency
 
 # 0.8.0
 - BREAKING CHANGE: Removed support for youtube-dl. Now only supports `yt-dlp`
