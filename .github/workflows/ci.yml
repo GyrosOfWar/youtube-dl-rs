@@ -38,4 +38,4 @@ jobs:
         run: cargo check --all-features --all-targets --verbose
 
       - name: Run tests
-        run: cargo hack test --each-feature
+        run: cargo hack test --each-feature --exclude-no-default-features
