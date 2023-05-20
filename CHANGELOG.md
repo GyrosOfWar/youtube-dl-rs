@@ -1,4 +1,6 @@
 # Unreleased
+
+# 0.8.1
 - feat: add support for `rustls-tls` feature of the transitive reqwest dependency
 
 # 0.8.0
