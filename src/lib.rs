@@ -404,7 +404,7 @@ impl YoutubeDl {
         self.debug = arg;
         self
     }
-    
+
     /// Specify whether to ignore errors (exit code & flag)
     pub fn ignore_errors(&mut self, arg: bool) -> &mut Self {
         self.ignore_errors = arg;
@@ -478,7 +478,7 @@ impl YoutubeDl {
             args.push("-P");
             args.push(output_dir);
         }
-        
+
         if self.ignore_errors {
             args.push("--ignore-errors");
         }
