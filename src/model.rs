@@ -315,6 +315,8 @@ pub enum Protocol {
     HttpDashSegmentsHttpDashSegments,
     #[serde(rename = "m3u8_native+m3u8_native")]
     M3U8NativeM3U8Native,
+    #[serde(rename = "niconico_dmc")]
+    NicoNicoDmc,
 }
 
 // Codec values are set explicitly, and when there is no codec, it is sometimes
