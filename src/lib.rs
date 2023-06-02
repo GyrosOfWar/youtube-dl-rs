@@ -260,6 +260,7 @@ pub struct YoutubeDl {
     output_template: Option<String>,
     output_directory: Option<String>,
     debug: bool,
+    ignore_errors: bool,
 }
 
 impl YoutubeDl {
@@ -284,6 +285,7 @@ impl YoutubeDl {
             output_template: None,
             output_directory: None,
             debug: false,
+            ignore_errors: false,
         }
     }
 
@@ -403,6 +405,12 @@ impl YoutubeDl {
         self
     }
 
+    /// Specify whether to ignore errors (exit code & flag)
+    pub fn ignore_errors(&mut self, arg: bool) -> &mut Self {
+        self.ignore_errors = arg;
+        self
+    }
+
     fn path(&self) -> &Path {
         match &self.youtube_dl_path {
             Some(path) => path,
@@ -471,6 +479,10 @@ impl YoutubeDl {
             args.push(output_dir);
         }
 
+        if self.ignore_errors {
+            args.push("--ignore-errors");
+        }
+
         for extra_arg in &self.extra_args {
             args.push(extra_arg);
         }
@@ -521,7 +533,7 @@ impl YoutubeDl {
             child.wait()?
         };
 
-        if exit_code.success() {
+        if exit_code.success() || self.ignore_errors {
             if self.debug {
                 let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
                 eprintln!("{}", string);
@@ -585,7 +597,7 @@ impl YoutubeDl {
             child.wait().await?
         };
 
-        if exit_code.success() {
+        if exit_code.success() || self.ignore_errors {
             if self.debug {
                 let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
                 eprintln!("{}", string);

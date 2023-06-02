@@ -146,6 +146,7 @@ pub struct JsonOutput {
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Playlist {
+    #[serde(default, deserialize_with = "parse_entries")]
     pub entries: Option<Vec<SingleVideo>>,
     pub extractor: Option<String>,
     pub extractor_key: Option<String>,
@@ -248,7 +249,7 @@ pub struct SingleVideo {
     pub thumbnail: Option<String>,
     pub thumbnails: Option<Vec<Thumbnail>>,
     pub timestamp: Option<f64>,
-    pub title: String,
+    pub title: Option<String>,
     pub track: Option<String>,
     pub track_id: Option<String>,
     pub track_number: Option<String>,
@@ -321,12 +322,25 @@ pub enum Protocol {
 // given as "none" (instead of simply missing from the JSON).
 // Default decoding in this case would result in `Some("none".to_string())`, which is why
 // this custom parse function exists.
-fn parse_codec<'de, D>(d: D) -> Result<Option<String>, D::Error>
+fn parse_codec<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    Deserialize::deserialize(d).map(|x: Option<_>| match x.unwrap_or_default() {
+    Deserialize::deserialize(deserializer).map(|x: Option<_>| match x.unwrap_or_default() {
         Some(s) if s == "none" => None,
         x => x,
     })
+}
+
+// Video entries can be null in the case of premium videos
+// Flattens entries to simplify the type from Option<Vec<Option<SingleVideo>>>> to Option<Vec<SingleVideo>>
+fn parse_entries<'de, D>(deserializer: D) -> Result<Option<Vec<SingleVideo>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let entries: Option<Vec<Option<SingleVideo>>> = Deserialize::deserialize(deserializer)?;
+    let flattened_entries = entries
+        .map(|vec_option_single_video| vec_option_single_video.into_iter().flatten().collect());
+
+    Ok(flattened_entries)
 }

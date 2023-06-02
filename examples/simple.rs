@@ -6,5 +6,5 @@ fn main() {
         .run()
         .unwrap();
     let title = output.into_single_video().unwrap().title;
-    println!("Video title: {}", title);
+    println!("Video title: {title:?}");
 }
