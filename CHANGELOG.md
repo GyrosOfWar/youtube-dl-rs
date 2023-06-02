@@ -1,4 +1,6 @@
 # Unreleased
+- feat: Add `ignore_errors` to builder and options
+- fix: Add niconico_dmc to formats
 
 # 0.8.1
 - feat: add support for `rustls-tls` feature of the transitive reqwest dependency
