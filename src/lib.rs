@@ -367,14 +367,12 @@ impl YoutubeDl {
     /// Set the `--datebefore` flag only downloading/viewing videos on or before this date
     pub fn date_before<S: Into<String>>(&mut self, date_string: S) -> &mut Self {
         self.date_before = Some(date_string.into());
-        self.ignore_error_101 = true;
         self
     }
     
     /// Set the `--dateafter` flag only downloading/viewing vidieos on or after this date 
     pub fn date_after<S: Into<String>>(&mut self, date_string: S) -> &mut Self {
         self.date_after = Some(date_string.into());
-        self.ignore_error_101 = true;
         self
     }
 
