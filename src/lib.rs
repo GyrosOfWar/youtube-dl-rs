@@ -670,7 +670,7 @@ impl YoutubeDl {
             child.wait().await?
         };
 
-        if exit_code.success() || self.ignore_errors {
+        if exit_code.success() || self.ignore_errors || (self.ignore_error_101 && exit_code.code() == Some(101)) {
             if self.debug {
                 let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
                 eprintln!("{}", string);
