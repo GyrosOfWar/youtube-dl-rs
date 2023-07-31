@@ -253,6 +253,11 @@ pub struct YoutubeDl {
     referer: Option<String>,
     url: String,
     process_timeout: Option<Duration>,
+    break_on_reject: bool,
+    playlist_reverse: bool,
+    date_before: Option<String>,
+    date_after: Option<String>,
+    date: Option<String>,
     extract_audio: bool,
     download: bool,
     playlist_items: Option<String>,
@@ -260,6 +265,7 @@ pub struct YoutubeDl {
     output_template: Option<String>,
     output_directory: Option<String>,
     debug: bool,
+    ignore_error_101: bool,
     ignore_errors: bool,
 }
 
@@ -278,6 +284,11 @@ impl YoutubeDl {
             user_agent: None,
             referer: None,
             process_timeout: None,
+            date: None,
+            date_after: None,
+            date_before: None,
+            break_on_reject: false,
+            playlist_reverse: false,
             extract_audio: false,
             download: false,
             playlist_items: None,
@@ -285,6 +296,7 @@ impl YoutubeDl {
             output_template: None,
             output_directory: None,
             debug: false,
+            ignore_error_101: false,
             ignore_errors: false,
         }
     }
@@ -321,6 +333,48 @@ impl YoutubeDl {
     /// Set the `--user-agent` command line flag.
     pub fn user_agent<S: Into<String>>(&mut self, user_agent: S) -> &mut Self {
         self.user_agent = Some(user_agent.into());
+        self
+    }
+
+    /// Set the `--playlist-reverse` flag. Useful with break-on-reject and date_before
+    /// for faster queries.
+    pub fn playlist_reverse(&mut self, playlist_reverse: bool) -> &mut Self {
+        self.playlist_reverse = playlist_reverse;
+        self
+    }
+
+    /// Sets the `--break-on-reject` flag, usefull for faster date_after queries.
+    /// Strongly suggest also setting ignore_error_101 as any break
+    /// will result in an error without. 
+    pub fn break_on_reject(&mut self, break_on_reject: bool) -> &mut Self {
+        self.break_on_reject = break_on_reject;
+        self
+    }
+
+    /// If yt-dlp aborts with an error code 101 (such as on breaking from rejecting a match)
+    /// ignore the error condition and return the response anyways. Useful with break_on_reject
+    pub fn ignore_error_101(&mut self, ignore_error: bool) -> &mut Self {
+        self.ignore_error_101 = ignore_error;
+        self
+    }
+
+    /// Sets the `--date` command line flag only downloading/viewing videos on this date
+    pub fn date<S: Into<String>>(&mut self, date_string: S) -> &mut Self {
+        self.date = Some(date_string.into());
+        self
+    }
+    
+    /// Set the `--datebefore` flag only downloading/viewing videos on or before this date
+    pub fn date_before<S: Into<String>>(&mut self, date_string: S) -> &mut Self {
+        self.date_before = Some(date_string.into());
+        self.ignore_error_101 = true;
+        self
+    }
+    
+    /// Set the `--dateafter` flag only downloading/viewing vidieos on or after this date 
+    pub fn date_after<S: Into<String>>(&mut self, date_string: S) -> &mut Self {
+        self.date_after = Some(date_string.into());
+        self.ignore_error_101 = true;
         self
     }
 
@@ -479,6 +533,25 @@ impl YoutubeDl {
             args.push(output_dir);
         }
 
+        if let Some(date) = &self.date {
+            args.push("--date");
+            args.push(date);
+        }
+
+        if let Some(date_after) = &self.date_after {
+            args.push("--dateafter");
+            args.push(date_after);
+        }
+
+        if let Some(date_before) = &self.date_before {
+            args.push("--datebefore");
+            args.push(date_before);
+        }
+
+        if self.break_on_reject {
+            args.push("--break-on-reject");
+        }
+
         if self.ignore_errors {
             args.push("--ignore-errors");
         }
@@ -533,7 +606,7 @@ impl YoutubeDl {
             child.wait()?
         };
 
-        if exit_code.success() || self.ignore_errors {
+        if exit_code.success() || self.ignore_errors || (self.ignore_error_101 && exit_code.code() == Some(101)) {
             if self.debug {
                 let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
                 eprintln!("{}", string);
