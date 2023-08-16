@@ -26,16 +26,17 @@ use serde::{Deserialize, Serialize};
 use std::error::Error as StdError;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::process::ExitStatus;
 use std::time::Duration;
 
-#[cfg(feature = "downloader")]
 /// Exposes a function to download the latest version of youtube-dl/yt-dlp.
+#[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
 pub mod downloader;
 pub mod model;
 
 pub use crate::model::*;
 
-#[cfg(feature = "downloader")]
+#[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
 pub use crate::downloader::download_yt_dlp;
 
 /// Data returned by `YoutubeDl::run`. Output can either be a single video or a playlist of videos.
@@ -86,11 +87,11 @@ pub enum Error {
     ProcessTimeout,
 
     /// HTTP error (when fetching youtube-dl/yt-dlp)
-    #[cfg(feature = "downloader")]
+    #[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
     Http(reqwest::Error),
 
     /// When no GitHub release could be found to download the youtube-dl/yt-dlp executable.
-    #[cfg(feature = "downloader")]
+    #[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
     NoReleaseFound,
 }
 
@@ -106,7 +107,7 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-#[cfg(feature = "downloader")]
+#[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
 impl From<reqwest::Error> for Error {
     fn from(err: reqwest::Error) -> Self {
         Error::Http(err)
@@ -122,9 +123,9 @@ impl fmt::Display for Error {
                 write!(f, "non-zero exit code: {}, stderr: {}", code, stderr)
             }
             Self::ProcessTimeout => write!(f, "process timed out"),
-            #[cfg(feature = "downloader")]
+            #[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
             Self::Http(err) => write!(f, "http error: {}", err),
-            #[cfg(feature = "downloader")]
+            #[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
             Self::NoReleaseFound => write!(f, "no github release found for specified binary"),
         }
     }
@@ -137,9 +138,9 @@ impl StdError for Error {
             Self::Json(err) => Some(err),
             Self::ExitCode { .. } => None,
             Self::ProcessTimeout => None,
-            #[cfg(feature = "downloader")]
+            #[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
             Self::Http(err) => Some(err),
-            #[cfg(feature = "downloader")]
+            #[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
             Self::NoReleaseFound => None,
         }
     }
@@ -451,7 +452,7 @@ impl YoutubeDl {
         }
     }
 
-    fn process_args(&self) -> Vec<&str> {
+    fn common_args(&self) -> Vec<&str> {
         let mut args = vec![];
         if let Some(format) = &self.format {
             args.push("-f");
@@ -535,6 +536,17 @@ impl YoutubeDl {
             args.push(extra_arg);
         }
 
+        args
+    }
+
+    fn process_args(&self) -> Vec<&str> {
+        let mut args = self.common_args();
+
+        if let Some(output_dir) = &self.output_directory {
+            args.push("-P");
+            args.push(output_dir);
+        }
+
         args.push("-J");
 
         if self.download {
@@ -548,19 +560,28 @@ impl YoutubeDl {
         args
     }
 
-    /// Run youtube-dl with the arguments specified through the builder.
-    pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
-        use serde_json::{json, Value};
+    fn process_download_args<'a>(&'a self, folder: &'a str) -> Vec<&'a str> {
+        let mut args = self.common_args();
+
+        args.push("-P");
+        args.push(folder);
+        args.push("--no-simulate");
+        args.push("--no-progress");
+        log::debug!("youtube-dl arguments: {:?}", args);
+
+        args
+    }
+
+    fn run_process(&self, args: Vec<&str>) -> Result<ProcessResult, Error> {
         use std::io::Read;
         use std::process::{Command, Stdio};
         use wait_timeout::ChildExt;
 
-        let process_args = self.process_args();
         let path = self.path();
         let mut child = Command::new(path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .args(process_args)
+            .args(args)
             .spawn()?;
 
         // Continually read from stdout so that it does not fill up with large output and hang forever.
@@ -581,50 +602,30 @@ impl YoutubeDl {
             child.wait()?
         };
 
-        if exit_code.success() || self.ignore_errors {
-            if self.debug {
-                let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
-                eprintln!("{}", string);
-            }
-
-            let value: Value = serde_json::from_reader(stdout.as_slice())?;
-
-            let is_playlist = value["_type"] == json!("playlist");
-            if is_playlist {
-                let playlist: Playlist = serde_json::from_value(value)?;
-                Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
-            } else {
-                let video: SingleVideo = serde_json::from_value(value)?;
-                Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
-            }
-        } else {
-            let mut stderr = vec![];
-            if let Some(mut reader) = child.stderr {
-                reader.read_to_end(&mut stderr)?;
-            }
-            let stderr = String::from_utf8(stderr).unwrap_or_default();
-            Err(Error::ExitCode {
-                code: exit_code.code().unwrap_or(1),
-                stderr,
-            })
+        let mut stderr = vec![];
+        if let Some(mut reader) = child.stderr {
+            reader.read_to_end(&mut stderr)?;
         }
+
+        Ok(ProcessResult {
+            stdout,
+            stderr,
+            exit_code,
+        })
     }
 
-    /// Run youtube-dl asynchronously with the arguments specified through the builder.
     #[cfg(feature = "tokio")]
-    pub async fn run_async(&self) -> Result<YoutubeDlOutput, Error> {
-        use serde_json::{json, Value};
+    async fn run_process_async(&self, args: Vec<&str>) -> Result<ProcessResult, Error> {
         use std::process::Stdio;
         use tokio::io::AsyncReadExt;
         use tokio::process::Command;
         use tokio::time::timeout;
 
-        let process_args = self.process_args();
         let path = self.path();
         let mut child = Command::new(path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .args(process_args)
+            .args(args)
             .spawn()?;
 
         // Continually read from stdout so that it does not fill up with large output and hang forever.
@@ -644,6 +645,28 @@ impl YoutubeDl {
         } else {
             child.wait().await?
         };
+        let mut stderr = vec![];
+        if let Some(mut reader) = child.stderr {
+            reader.read_to_end(&mut stderr).await?;
+        }
+
+        Ok(ProcessResult {
+            stdout,
+            stderr,
+            exit_code,
+        })
+    }
+
+    /// Run yt-dlp with the arguments specified through the builder.
+    pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
+        use serde_json::{json, Value};
+
+        let args = self.process_args();
+        let ProcessResult {
+            stderr,
+            stdout,
+            exit_code,
+        } = self.run_process(args)?;
 
         if exit_code.success() || self.ignore_errors {
             if self.debug {
@@ -662,10 +685,6 @@ impl YoutubeDl {
                 Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
             }
         } else {
-            let mut stderr = vec![];
-            if let Some(mut reader) = child.stderr {
-                reader.read_to_end(&mut stderr).await?;
-            }
             let stderr = String::from_utf8(stderr).unwrap_or_default();
             Err(Error::ExitCode {
                 code: exit_code.code().unwrap_or(1),
@@ -673,6 +692,94 @@ impl YoutubeDl {
             })
         }
     }
+
+    /// Run youtube-dl asynchronously with the arguments specified through the builder.
+    #[cfg(feature = "tokio")]
+    pub async fn run_async(&self) -> Result<YoutubeDlOutput, Error> {
+        use serde_json::{json, Value};
+
+        let args = self.process_args();
+        let ProcessResult {
+            stderr,
+            stdout,
+            exit_code,
+        } = self.run_process_async(args).await?;
+
+        if exit_code.success() || self.ignore_errors {
+            if self.debug {
+                let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
+                eprintln!("{}", string);
+            }
+
+            let value: Value = serde_json::from_reader(stdout.as_slice())?;
+
+            let is_playlist = value["_type"] == json!("playlist");
+            if is_playlist {
+                let playlist: Playlist = serde_json::from_value(value)?;
+                Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
+            } else {
+                let video: SingleVideo = serde_json::from_value(value)?;
+                Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
+            }
+        } else {
+            let stderr = String::from_utf8(stderr).unwrap_or_default();
+            Err(Error::ExitCode {
+                code: exit_code.code().unwrap_or(1),
+                stderr,
+            })
+        }
+    }
+
+    /// Download the file to the specified destination folder.
+    /// If the output contains a line that indicates the filename of the output,
+    /// it returns that file. Otherwise, it returns the folder.
+    pub fn download_to(&self, folder: impl AsRef<Path>) -> Result<PathBuf, Error> {
+        const PREFIX: &str = "[download] Destination:";
+
+        let folder_str = folder.as_ref().to_string_lossy();
+        let args = self.process_download_args(&folder_str);
+        let ProcessResult { stdout, .. } = self.run_process(args)?;
+
+        // hack: try to find the actual filename from yt-dlp's output. unfortunately I don't really know a better way to do this.
+        let stdout = String::from_utf8(stdout).unwrap();
+        let line = stdout.split('\n').find(|line| line.starts_with(PREFIX));
+
+        if let Some(line) = line {
+            let path = line.replace(PREFIX, "");
+            Ok(PathBuf::from(path.trim()))
+        } else {
+            Ok(PathBuf::from(folder.as_ref()))
+        }
+    }
+
+    /// Download the file to the specified destination folder asynchronously.
+    /// If the output contains a line that indicates the filename of the output,
+    /// it returns that file. Otherwise, it returns the folder.
+    #[cfg(feature = "tokio")]
+    pub async fn download_to_async(&self, folder: impl AsRef<Path>) -> Result<PathBuf, Error> {
+        const PREFIX: &str = "[download] Destination:";
+
+        let folder_str = folder.as_ref().to_string_lossy();
+        let args = self.process_download_args(&folder_str);
+        let ProcessResult { stdout, .. } = self.run_process_async(args).await?;
+
+        // hack: try to find the actual filename from yt-dlp's output. unfortunately I don't really know a better way to do this.
+        let stdout = String::from_utf8(stdout).unwrap();
+        let line = stdout.split('\n').find(|line| line.starts_with(PREFIX));
+
+        if let Some(line) = line {
+            let path = line.replace(PREFIX, "");
+            Ok(PathBuf::from(path.trim()))
+        } else {
+            Ok(PathBuf::from(folder.as_ref()))
+        }
+    }
+}
+
+struct ProcessResult {
+    stdout: Vec<u8>,
+    stderr: Vec<u8>,
+    exit_code: ExitStatus,
 }
 
 #[cfg(test)]
@@ -807,5 +914,10 @@ mod tests {
 
         let unknown_protocol: Protocol = serde_json::from_str("\"some_unknown_protocol\"").unwrap();
         assert!(matches!(unknown_protocol, Protocol::Unknown));
+    }
+
+    #[test]
+    fn test_download_to_destination() {
+        // TODO
     }
 }
