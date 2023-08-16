@@ -677,7 +677,7 @@ impl YoutubeDl {
 
 #[cfg(test)]
 mod tests {
-    use crate::{SearchOptions, YoutubeDl};
+    use crate::{Protocol, SearchOptions, YoutubeDl};
 
     use std::path::Path;
     use std::time::Duration;
@@ -798,5 +798,14 @@ mod tests {
             .run()
             .unwrap();
         assert_eq!(output.into_single_video().unwrap().width, Some(608.0));
+    }
+
+    #[test]
+    fn test_protocol_fallback() {
+        let parsed_protocol: Protocol = serde_json::from_str("\"http\"").unwrap();
+        assert!(matches!(parsed_protocol, Protocol::Http));
+
+        let unknown_protocol: Protocol = serde_json::from_str("\"some_unknown_protocol\"").unwrap();
+        assert!(matches!(unknown_protocol, Protocol::Unknown));
     }
 }

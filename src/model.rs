@@ -329,6 +329,9 @@ pub enum Protocol {
     NicoNicoDmc,
     #[serde(rename = "m3u8_native+https")]
     M3U8NativeHttps,
+    /// Fallback for cases where the library does not keep up with youtube-dl/yt-dlp
+    #[serde(other)]
+    Unknown,
 }
 
 // Codec values are set explicitly, and when there is no codec, it is sometimes
