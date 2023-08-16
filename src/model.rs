@@ -71,6 +71,13 @@ pub struct Fragment {
     pub url: Option<String>,
 }
 
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, Default)]
+pub struct HeatmapSample {
+    pub start_time: f64,
+    pub end_time: f64,
+    pub value: f64,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct JsonOutput {
     pub age_limit: Option<i64>,
@@ -107,6 +114,7 @@ pub struct JsonOutput {
     pub extractor_key: Option<String>,
     pub formats: Option<Vec<Format>>,
     pub genre: Option<String>,
+    pub heatmap: Option<Vec<HeatmapSample>>,
     pub id: String,
     pub is_live: Option<bool>,
     pub license: Option<String>,
@@ -210,6 +218,7 @@ pub struct SingleVideo {
     pub fragment_base_url: Option<String>,
     pub fragments: Option<Vec<Fragment>>,
     pub genre: Option<String>,
+    pub heatmap: Option<Vec<HeatmapSample>>,
     pub height: Option<f64>,
     pub http_headers: Option<BTreeMap<String, Option<String>>>,
     pub id: String,
