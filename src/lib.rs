@@ -566,7 +566,7 @@ impl YoutubeDl {
         args.push("-P");
         args.push(folder);
         args.push("-o");
-        args.push("download-%(autonumber)s.%(ext)s");
+        args.push("file.%(ext)s");
         args.push("--no-simulate");
         args.push("--no-progress");
         args.push(&self.url);
@@ -721,47 +721,40 @@ impl YoutubeDl {
         }
     }
 
-    fn process_download_output(&self, stdout: Vec<u8>) -> Option<PathBuf> {
-        const PREFIX: &str = "[download] Destination:";
+    fn process_download_output(&self, destination: impl AsRef<Path>) -> Result<PathBuf, Error> {
+        use std::fs;
 
-        // hack: try to find the actual filename from yt-dlp's output. unfortunately I don't really know a better way to do this.
-        let stdout = String::from_utf8(stdout).unwrap();
-        println!("{}", stdout);
-        let line = stdout.split('\n').find(|line| line.starts_with(PREFIX));
-
-        if let Some(line) = line {
-            let path = line.replace(PREFIX, "");
-            let path = Path::new(&path);
-            dbg!(&path);
-            todo!()
-        }
-        None
+        fs::read_dir(destination)?
+            .filter_map(|e| e.ok())
+            .find(|e| e.path().file_stem() == Some("file".as_ref()))
+            .ok_or(Error::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "file not found",
+            )))
+            .map(|e| e.path())
     }
 
     /// Download the file to the specified destination folder.
     /// If the output contains a line that indicates the filename of the output,
     /// it returns the path to that file.
-    pub fn download_to(&self, folder: impl AsRef<Path>) -> Result<Option<PathBuf>, Error> {
+    pub fn download_to(&self, folder: impl AsRef<Path>) -> Result<PathBuf, Error> {
         let folder_str = folder.as_ref().to_string_lossy();
         let args = self.process_download_args(&folder_str);
-        let ProcessResult { stdout, .. } = self.run_process(args)?;
+        self.run_process(args)?;
 
-        Ok(self.process_download_output(stdout))
+        self.process_download_output(folder)
     }
 
     /// Download the file to the specified destination folder asynchronously.
     /// If the output contains a line that indicates the filename of the output,
     /// it returns the path to that file.
     #[cfg(feature = "tokio")]
-    pub async fn download_to_async(
-        &self,
-        folder: impl AsRef<Path>,
-    ) -> Result<Option<PathBuf>, Error> {
+    pub async fn download_to_async(&self, folder: impl AsRef<Path>) -> Result<PathBuf, Error> {
         let folder_str = folder.as_ref().to_string_lossy();
         let args = self.process_download_args(&folder_str);
-        let ProcessResult { stdout, .. } = self.run_process_async(args).await?;
+        self.run_process_async(args).await?;
 
-        Ok(self.process_download_output(stdout))
+        self.process_download_output(folder)
     }
 }
 
@@ -909,7 +902,6 @@ mod tests {
     fn test_download_to_destination() {
         let file = YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
             .download_to(".")
-            .unwrap()
             .unwrap();
         dbg!(&file);
         assert!(file.is_file());
