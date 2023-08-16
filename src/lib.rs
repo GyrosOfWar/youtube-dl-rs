@@ -657,10 +657,28 @@ impl YoutubeDl {
         })
     }
 
-    /// Run yt-dlp with the arguments specified through the builder.
-    pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
+    fn process_json_output(&self, stdout: Vec<u8>) -> Result<YoutubeDlOutput, Error> {
         use serde_json::{json, Value};
 
+        if self.debug {
+            let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
+            eprintln!("{}", string);
+        }
+
+        let value: Value = serde_json::from_reader(stdout.as_slice())?;
+
+        let is_playlist = value["_type"] == json!("playlist");
+        if is_playlist {
+            let playlist: Playlist = serde_json::from_value(value)?;
+            Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
+        } else {
+            let video: SingleVideo = serde_json::from_value(value)?;
+            Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
+        }
+    }
+
+    /// Run yt-dlp with the arguments specified through the builder.
+    pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
         let args = self.process_args();
         let ProcessResult {
             stderr,
@@ -669,21 +687,7 @@ impl YoutubeDl {
         } = self.run_process(args)?;
 
         if exit_code.success() || self.ignore_errors {
-            if self.debug {
-                let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
-                eprintln!("{}", string);
-            }
-
-            let value: Value = serde_json::from_reader(stdout.as_slice())?;
-
-            let is_playlist = value["_type"] == json!("playlist");
-            if is_playlist {
-                let playlist: Playlist = serde_json::from_value(value)?;
-                Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
-            } else {
-                let video: SingleVideo = serde_json::from_value(value)?;
-                Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
-            }
+            self.process_json_output(stdout)
         } else {
             let stderr = String::from_utf8(stderr).unwrap_or_default();
             Err(Error::ExitCode {
@@ -696,8 +700,6 @@ impl YoutubeDl {
     /// Run youtube-dl asynchronously with the arguments specified through the builder.
     #[cfg(feature = "tokio")]
     pub async fn run_async(&self) -> Result<YoutubeDlOutput, Error> {
-        use serde_json::{json, Value};
-
         let args = self.process_args();
         let ProcessResult {
             stderr,
@@ -706,21 +708,7 @@ impl YoutubeDl {
         } = self.run_process_async(args).await?;
 
         if exit_code.success() || self.ignore_errors {
-            if self.debug {
-                let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
-                eprintln!("{}", string);
-            }
-
-            let value: Value = serde_json::from_reader(stdout.as_slice())?;
-
-            let is_playlist = value["_type"] == json!("playlist");
-            if is_playlist {
-                let playlist: Playlist = serde_json::from_value(value)?;
-                Ok(YoutubeDlOutput::Playlist(Box::new(playlist)))
-            } else {
-                let video: SingleVideo = serde_json::from_value(value)?;
-                Ok(YoutubeDlOutput::SingleVideo(Box::new(video)))
-            }
+            self.process_json_output(stdout)
         } else {
             let stderr = String::from_utf8(stderr).unwrap_or_default();
             Err(Error::ExitCode {
@@ -730,15 +718,12 @@ impl YoutubeDl {
         }
     }
 
-    /// Download the file to the specified destination folder.
-    /// If the output contains a line that indicates the filename of the output,
-    /// it returns that file. Otherwise, it returns the folder.
-    pub fn download_to(&self, folder: impl AsRef<Path>) -> Result<PathBuf, Error> {
+    fn process_download_output(
+        &self,
+        stdout: Vec<u8>,
+        folder: impl AsRef<Path>,
+    ) -> Result<PathBuf, Error> {
         const PREFIX: &str = "[download] Destination:";
-
-        let folder_str = folder.as_ref().to_string_lossy();
-        let args = self.process_download_args(&folder_str);
-        let ProcessResult { stdout, .. } = self.run_process(args)?;
 
         // hack: try to find the actual filename from yt-dlp's output. unfortunately I don't really know a better way to do this.
         let stdout = String::from_utf8(stdout).unwrap();
@@ -752,27 +737,27 @@ impl YoutubeDl {
         }
     }
 
+    /// Download the file to the specified destination folder.
+    /// If the output contains a line that indicates the filename of the output,
+    /// it returns that file. Otherwise, it returns the folder.
+    pub fn download_to(&self, folder: impl AsRef<Path>) -> Result<PathBuf, Error> {
+        let folder_str = folder.as_ref().to_string_lossy();
+        let args = self.process_download_args(&folder_str);
+        let ProcessResult { stdout, .. } = self.run_process(args)?;
+
+        self.process_download_output(stdout, folder)
+    }
+
     /// Download the file to the specified destination folder asynchronously.
     /// If the output contains a line that indicates the filename of the output,
     /// it returns that file. Otherwise, it returns the folder.
     #[cfg(feature = "tokio")]
     pub async fn download_to_async(&self, folder: impl AsRef<Path>) -> Result<PathBuf, Error> {
-        const PREFIX: &str = "[download] Destination:";
-
         let folder_str = folder.as_ref().to_string_lossy();
         let args = self.process_download_args(&folder_str);
         let ProcessResult { stdout, .. } = self.run_process_async(args).await?;
 
-        // hack: try to find the actual filename from yt-dlp's output. unfortunately I don't really know a better way to do this.
-        let stdout = String::from_utf8(stdout).unwrap();
-        let line = stdout.split('\n').find(|line| line.starts_with(PREFIX));
-
-        if let Some(line) = line {
-            let path = line.replace(PREFIX, "");
-            Ok(PathBuf::from(path.trim()))
-        } else {
-            Ok(PathBuf::from(folder.as_ref()))
-        }
+        self.process_download_output(stdout, folder)
     }
 }
 
