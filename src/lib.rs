@@ -253,6 +253,10 @@ pub struct YoutubeDl {
     referer: Option<String>,
     url: String,
     process_timeout: Option<Duration>,
+    playlist_reverse: bool,
+    date_before: Option<String>,
+    date_after: Option<String>,
+    date: Option<String>,
     extract_audio: bool,
     download: bool,
     playlist_items: Option<String>,
@@ -278,6 +282,10 @@ impl YoutubeDl {
             user_agent: None,
             referer: None,
             process_timeout: None,
+            date: None,
+            date_after: None,
+            date_before: None,
+            playlist_reverse: false,
             extract_audio: false,
             download: false,
             playlist_items: None,
@@ -321,6 +329,31 @@ impl YoutubeDl {
     /// Set the `--user-agent` command line flag.
     pub fn user_agent<S: Into<String>>(&mut self, user_agent: S) -> &mut Self {
         self.user_agent = Some(user_agent.into());
+        self
+    }
+
+    /// Set the `--playlist-reverse` flag. Useful with break-on-reject and date_before
+    /// for faster queries.
+    pub fn playlist_reverse(&mut self, playlist_reverse: bool) -> &mut Self {
+        self.playlist_reverse = playlist_reverse;
+        self
+    }
+
+    /// Sets the `--date` command line flag only downloading/viewing videos on this date
+    pub fn date<S: Into<String>>(&mut self, date_string: S) -> &mut Self {
+        self.date = Some(date_string.into());
+        self
+    }
+    
+    /// Set the `--datebefore` flag only downloading/viewing videos on or before this date
+    pub fn date_before<S: Into<String>>(&mut self, date_string: S) -> &mut Self {
+        self.date_before = Some(date_string.into());
+        self
+    }
+    
+    /// Set the `--dateafter` flag only downloading/viewing vidieos on or after this date 
+    pub fn date_after<S: Into<String>>(&mut self, date_string: S) -> &mut Self {
+        self.date_after = Some(date_string.into());
         self
     }
 
@@ -477,6 +510,21 @@ impl YoutubeDl {
         if let Some(output_dir) = &self.output_directory {
             args.push("-P");
             args.push(output_dir);
+        }
+
+        if let Some(date) = &self.date {
+            args.push("--date");
+            args.push(date);
+        }
+
+        if let Some(date_after) = &self.date_after {
+            args.push("--dateafter");
+            args.push(date_after);
+        }
+
+        if let Some(date_before) = &self.date_before {
+            args.push("--datebefore");
+            args.push(date_before);
         }
 
         if self.ignore_errors {
