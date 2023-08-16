@@ -327,6 +327,8 @@ pub enum Protocol {
     M3U8NativeM3U8Native,
     #[serde(rename = "niconico_dmc")]
     NicoNicoDmc,
+    #[serde(rename = "m3u8_native+https")]
+    M3U8NativeHttps,
 }
 
 // Codec values are set explicitly, and when there is no codec, it is sometimes
