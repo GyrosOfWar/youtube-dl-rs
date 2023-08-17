@@ -398,7 +398,6 @@ impl YoutubeDl {
     /// Specify whether to download videos, instead of just listing them.
     ///
     /// Note that no progress will be logged or emitted.
-
     pub fn download(&mut self, download: bool) -> &mut Self {
         self.download = download;
         self
@@ -903,7 +902,7 @@ mod tests {
         let file = YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
             .download_to(".")
             .unwrap();
-        dbg!(&file);
+
         assert!(file.is_file());
     }
 }
