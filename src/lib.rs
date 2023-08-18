@@ -23,6 +23,7 @@
 #![warn(missing_docs)]
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::error::Error as StdError;
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -264,6 +265,7 @@ pub struct YoutubeDl {
     extra_args: Vec<String>,
     output_template: Option<String>,
     output_directory: Option<String>,
+    #[cfg(test)]
     debug: bool,
     ignore_errors: bool,
 }
@@ -293,6 +295,7 @@ impl YoutubeDl {
             extra_args: Vec::new(),
             output_template: None,
             output_directory: None,
+            #[cfg(test)]
             debug: false,
             ignore_errors: false,
         }
@@ -660,8 +663,9 @@ impl YoutubeDl {
     }
 
     fn process_json_output(&self, stdout: Vec<u8>) -> Result<YoutubeDlOutput, Error> {
-        use serde_json::{json, Value};
+        use serde_json::json;
 
+        #[cfg(test)]
         if self.debug {
             let string = std::str::from_utf8(&stdout).expect("invalid utf-8 output");
             eprintln!("{}", string);
@@ -679,7 +683,9 @@ impl YoutubeDl {
         }
     }
 
-    /// Run yt-dlp with the arguments specified through the builder.
+    /// Run yt-dlp with the arguments specified through the builder and parse its
+    /// JSON ouput into `YoutubeDlOutput`. Note: This can fail when the JSON output
+    /// is not compatible with the struct definitions in this crate.
     pub fn run(&self) -> Result<YoutubeDlOutput, Error> {
         let args = self.process_args();
         let ProcessResult {
@@ -699,7 +705,30 @@ impl YoutubeDl {
         }
     }
 
-    /// Run youtube-dl asynchronously with the arguments specified through the builder.
+    /// Run yt-dlp with the arguments through the builder and parse its JSON output
+    /// into a `serde_json::Value`. This is meant as a fallback for when the JSON
+    /// output is not compatible with the struct definitions in this crate.
+    pub fn run_raw(&self) -> Result<Value, Error> {
+        let args = self.process_args();
+        let ProcessResult {
+            stderr,
+            stdout,
+            exit_code,
+        } = self.run_process(args)?;
+
+        if exit_code.success() || self.ignore_errors {
+            let value: Value = serde_json::from_reader(stdout.as_slice())?;
+            Ok(value)
+        } else {
+            let stderr = String::from_utf8(stderr).unwrap_or_default();
+            Err(Error::ExitCode {
+                code: exit_code.code().unwrap_or(1),
+                stderr,
+            })
+        }
+    }
+
+    /// Run yt-dlp asynchronously with the arguments specified through the builder.
     #[cfg(feature = "tokio")]
     pub async fn run_async(&self) -> Result<YoutubeDlOutput, Error> {
         let args = self.process_args();
@@ -711,6 +740,30 @@ impl YoutubeDl {
 
         if exit_code.success() || self.ignore_errors {
             self.process_json_output(stdout)
+        } else {
+            let stderr = String::from_utf8(stderr).unwrap_or_default();
+            Err(Error::ExitCode {
+                code: exit_code.code().unwrap_or(1),
+                stderr,
+            })
+        }
+    }
+
+    /// Run yt-dlp asynchronously with the arguments through the builder and parse its JSON output
+    /// into a `serde_json::Value`. This is meant as a fallback for when the JSON
+    /// output is not compatible with the struct definitions in this crate.
+    #[cfg(feature = "tokio")]
+    pub async fn run_raw_async(&self) -> Result<Value, Error> {
+        let args = self.process_args();
+        let ProcessResult {
+            stderr,
+            stdout,
+            exit_code,
+        } = self.run_process_async(args).await?;
+
+        if exit_code.success() || self.ignore_errors {
+            let value: Value = serde_json::from_reader(stdout.as_slice())?;
+            Ok(value)
         } else {
             let stderr = String::from_utf8(stderr).unwrap_or_default();
             Err(Error::ExitCode {
