@@ -260,7 +260,6 @@ pub struct YoutubeDl {
     date_after: Option<String>,
     date: Option<String>,
     extract_audio: bool,
-    download: bool,
     playlist_items: Option<String>,
     extra_args: Vec<String>,
     output_template: Option<String>,
@@ -290,7 +289,6 @@ impl YoutubeDl {
             date_before: None,
             playlist_reverse: false,
             extract_audio: false,
-            download: false,
             playlist_items: None,
             extra_args: Vec::new(),
             output_template: None,
@@ -395,14 +393,6 @@ impl YoutubeDl {
     /// Set the `--extract-audio` command line flag.
     pub fn extract_audio(&mut self, extract_audio: bool) -> &mut Self {
         self.extract_audio = extract_audio;
-        self
-    }
-
-    /// Specify whether to download videos, instead of just listing them.
-    ///
-    /// Note that no progress will be logged or emitted.
-    pub fn download(&mut self, download: bool) -> &mut Self {
-        self.download = download;
         self
     }
 
@@ -550,12 +540,6 @@ impl YoutubeDl {
         }
 
         args.push("-J");
-
-        if self.download {
-            args.push("--no-simulate");
-            args.push("--no-progress");
-        }
-
         args.push(&self.url);
         log::debug!("youtube-dl arguments: {:?}", args);
 
@@ -898,15 +882,11 @@ mod tests {
 
     fn test_download_with_yt_dlp() {
         // yee
-        let output = YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
-            .download(true)
+        YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
             .debug(true)
             .output_template("yee")
-            .run()
-            .unwrap()
-            .into_single_video()
+            .download_to(".")
             .unwrap();
-        assert_eq!(output.id, "q6EoRBvdVPQ");
         assert!(Path::new("yee.webm").is_file() || Path::new("yee").is_file());
         let _ = std::fs::remove_file("yee.webm");
         let _ = std::fs::remove_file("yee");
