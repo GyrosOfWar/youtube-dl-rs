@@ -6,6 +6,7 @@
 it does support `yt-dlp`, which has diverged from `youtube-dl` in some ways, but sees a lot more development.
 
 Runs yt-dlp and parses its JSON output. Example:
+
 ```rust
 use youtube_dl::YoutubeDl;
 
@@ -18,6 +19,7 @@ println!("Video title: {}", title);
 ```
 
 Or, if you want to it to run asynchronously (enable the feature `tokio`):
+
 ```rust
 let output = YoutubeDl::new("https://www.youtube.com/watch?v=VFbhKZFzbzk")
     .socket_timeout("15")
@@ -27,3 +29,8 @@ let title = output.into_single_video().unwrap().title;
 println!("Video title: {}", title);
 Ok(())
 ```
+
+## Feature flags
+
+- **tokio**: Enables the `async` variants of the `run`, `run_raw` and `download_to` methods.
+- **downloader-native-tls** / **downloader-rustls-tls**: Enables the `download_yt_dlp` method and `YoutubeDlFetcher` struct to download the `yt-dlp` executable with the given TLS backend used for reqwest.

@@ -933,8 +933,14 @@ mod tests {
 
     #[test]
     fn test_download_to_destination() {
+        let dir = tempfile::tempdir().unwrap();
+
         YoutubeDl::new("https://www.youtube.com/watch?v=q6EoRBvdVPQ")
-            .download_to(".")
+            .download_to(&dir)
             .unwrap();
+
+        let files: Vec<_> = std::fs::read_dir(&dir).unwrap().collect();
+        assert_eq!(1, files.len());
+        assert!(files[0].as_ref().unwrap().path().is_file());
     }
 }
