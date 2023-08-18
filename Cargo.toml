@@ -1,6 +1,6 @@
 [package]
 name = "youtube_dl"
-version = "0.8.1"
+version = "0.9.0-pre.1"
 authors = ["Martin Tomasi <martin.tomasi@gmail.com>"]
 edition = "2021"
 description = "Runs yt-dlp and parses its JSON output."
