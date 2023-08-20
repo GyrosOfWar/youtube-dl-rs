@@ -3,8 +3,11 @@
 - fix: Add niconico_dmc to formats
 - BREAKING CHANGE: Split `downloader` feature flag into two (`downloader-native-tls` and `downloader-rustls-tls`)
 - feat: Add support for `heatmap` output data
-- feat: Added new protocol to enum: `m3u8_native+https` and a fallback value in case none of the variants match.
-- feat: Added additional yt-dlp flags (playlist_reverse, date, dateafter, datebefore)
+- feat: Add new protocol to enum: `m3u8_native+https` and a fallback value in case none of the variants match.
+- feat: Add additional yt-dlp flags (`playlist_reverse`, `date`, `dateafter`, `datebefore`)
+- feat: Add new methods `download_to` and `download_to_async` to just download the video(s) to a destination.
+- feat: Add new methods `run_raw` and `run_raw_async` to get the JSON output as `serde_json::Value`
+- BREAKING CHANGE: Removed `download()` method on `YoutubeDl`, replaced with `download_to()` and `download_to_async()`
 
 # 0.8.1
 - feat: add support for `rustls-tls` feature of the transitive reqwest dependency
