@@ -1,4 +1,6 @@
 # Unreleased
+
+# 0.9.0
 - feat: Add `ignore_errors` to builder and options
 - fix: Add niconico_dmc to formats
 - BREAKING CHANGE: Split `downloader` feature flag into two (`downloader-native-tls` and `downloader-rustls-tls`)
