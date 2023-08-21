@@ -6,6 +6,7 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use either::Either;
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Chapter {
@@ -51,7 +52,8 @@ pub struct Format {
     pub player_url: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
-    pub quality: Option<f64>,
+    #[serde(with = "either::serde_untagged_optional")]
+    pub quality: Option<Either<f64, String>>,
     pub resolution: Option<String>,
     pub source_preference: Option<i64>,
     pub stretched_ratio: Option<f64>,
@@ -239,7 +241,8 @@ pub struct SingleVideo {
     pub playlist_uploader_id: Option<String>,
     pub preference: Option<Value>,
     pub protocol: Option<Protocol>,
-    pub quality: Option<f64>,
+    #[serde(with = "either::serde_untagged_optional")]
+    pub quality: Option<Either<f64, String>>,
     pub release_date: Option<String>,
     pub release_year: Option<i64>,
     pub repost_count: Option<i64>,
