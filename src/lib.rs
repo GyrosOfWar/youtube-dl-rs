@@ -262,6 +262,7 @@ pub struct YoutubeDl {
     date: Option<String>,
     extract_audio: bool,
     playlist_items: Option<String>,
+    max_downloads: Option<String>,
     extra_args: Vec<String>,
     output_template: Option<String>,
     output_directory: Option<String>,
@@ -292,6 +293,7 @@ impl YoutubeDl {
             playlist_reverse: false,
             extract_audio: false,
             playlist_items: None,
+            max_downloads: None,
             extra_args: Vec::new(),
             output_template: None,
             output_directory: None,
@@ -385,7 +387,7 @@ impl YoutubeDl {
         self
     }
 
-    /// Specify a file with cookies in Netscape cookie format.
+    /// Set the `--cookies-from-browser` command line flag.
     pub fn cookies_from_browser<S: Into<String>>(&mut self, browser_name: S) -> &mut Self {
         self.cookies_from_browser = Some(browser_name.into());
         self
@@ -407,6 +409,12 @@ impl YoutubeDl {
     /// Set the `--playlist-items` command line flag.
     pub fn playlist_items(&mut self, index: u32) -> &mut Self {
         self.playlist_items = Some(index.to_string());
+        self
+    }
+
+    /// Set the `--max-downloads` command line flag.
+    pub fn max_downloads(&mut self, max_downloads: u32) -> &mut Self {
+        self.max_downloads = Some(max_downloads.to_string());
         self
     }
 
@@ -506,6 +514,11 @@ impl YoutubeDl {
         if let Some(playlist_items) = &self.playlist_items {
             args.push("--playlist-items");
             args.push(playlist_items);
+        }
+
+        if let Some(max_downloads) = &self.max_downloads {
+            args.push("--max-downloads");
+            args.push(max_downloads);
         }
 
         if let Some(output_template) = &self.output_template {
