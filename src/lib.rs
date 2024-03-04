@@ -251,6 +251,7 @@ pub struct YoutubeDl {
     all_formats: bool,
     auth: Option<(String, String)>,
     cookies: Option<String>,
+    cookies_from_browser: Option<String>,
     user_agent: Option<String>,
     referer: Option<String>,
     url: String,
@@ -281,6 +282,7 @@ impl YoutubeDl {
             all_formats: false,
             auth: None,
             cookies: None,
+            cookies_from_browser: None,
             user_agent: None,
             referer: None,
             process_timeout: None,
@@ -383,6 +385,12 @@ impl YoutubeDl {
         self
     }
 
+    /// Specify a file with cookies in Netscape cookie format.
+    pub fn cookies_from_browser<S: Into<String>>(&mut self, browser_name: S) -> &mut Self {
+        self.cookies_from_browser = Some(browser_name.into());
+        self
+    }
+
     /// Set a process-level timeout for youtube-dl. (this controls the maximum overall duration
     /// the process may take, when it times out, `Error::ProcessTimeout` is returned)
     pub fn process_timeout(&mut self, timeout: Duration) -> &mut Self {
@@ -474,6 +482,11 @@ impl YoutubeDl {
         if let Some(cookie_path) = &self.cookies {
             args.push("--cookies");
             args.push(cookie_path);
+        }
+
+        if let Some(browser_name) = &self.cookies_from_browser {
+            args.push("--cookies-from-browser");
+            args.push(browser_name);
         }
 
         if let Some(user_agent) = &self.user_agent {
