@@ -388,8 +388,32 @@ impl YoutubeDl {
     }
 
     /// Set the `--cookies-from-browser` command line flag.
-    pub fn cookies_from_browser<S: Into<String>>(&mut self, browser_name: S) -> &mut Self {
-        self.cookies_from_browser = Some(browser_name.into());
+    pub fn cookies_from_browser<S: Into<String>>(
+        &mut self,
+        browser_name: S,
+        browser_keyring: Option<S>,
+        browser_profile: Option<S>,
+        browser_container: Option<S>,
+    ) -> &mut Self {
+        self.cookies_from_browser = Some(format!(
+            "{}{}{}{}",
+            browser_name.into(),
+            if let Some(keyring) = browser_keyring {
+                format!("+{}", keyring.into())
+            } else {
+                String::from("")
+            },
+            if let Some(profile) = browser_profile {
+                format!(":{}", profile.into())
+            } else {
+                String::from("")
+            },
+            if let Some(container) = browser_container {
+                format!("::{}", container.into())
+            } else {
+                String::from("")
+            }
+        ));
         self
     }
 
@@ -492,9 +516,9 @@ impl YoutubeDl {
             args.push(cookie_path);
         }
 
-        if let Some(browser_name) = &self.cookies_from_browser {
+        if let Some(cookies_from_browser) = &self.cookies_from_browser {
             args.push("--cookies-from-browser");
-            args.push(browser_name);
+            args.push(cookies_from_browser);
         }
 
         if let Some(user_agent) = &self.user_agent {
