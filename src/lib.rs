@@ -251,6 +251,7 @@ pub struct YoutubeDl {
     all_formats: bool,
     auth: Option<(String, String)>,
     cookies: Option<String>,
+    cookies_from_browser: Option<String>,
     user_agent: Option<String>,
     referer: Option<String>,
     url: String,
@@ -261,6 +262,7 @@ pub struct YoutubeDl {
     date: Option<String>,
     extract_audio: bool,
     playlist_items: Option<String>,
+    max_downloads: Option<String>,
     extra_args: Vec<String>,
     output_template: Option<String>,
     output_directory: Option<String>,
@@ -281,6 +283,7 @@ impl YoutubeDl {
             all_formats: false,
             auth: None,
             cookies: None,
+            cookies_from_browser: None,
             user_agent: None,
             referer: None,
             process_timeout: None,
@@ -290,6 +293,7 @@ impl YoutubeDl {
             playlist_reverse: false,
             extract_audio: false,
             playlist_items: None,
+            max_downloads: None,
             extra_args: Vec::new(),
             output_template: None,
             output_directory: None,
@@ -383,6 +387,36 @@ impl YoutubeDl {
         self
     }
 
+    /// Set the `--cookies-from-browser` command line flag.
+    pub fn cookies_from_browser<S: Into<String>>(
+        &mut self,
+        browser_name: S,
+        browser_keyring: Option<S>,
+        browser_profile: Option<S>,
+        browser_container: Option<S>,
+    ) -> &mut Self {
+        self.cookies_from_browser = Some(format!(
+            "{}{}{}{}",
+            browser_name.into(),
+            if let Some(keyring) = browser_keyring {
+                format!("+{}", keyring.into())
+            } else {
+                String::from("")
+            },
+            if let Some(profile) = browser_profile {
+                format!(":{}", profile.into())
+            } else {
+                String::from("")
+            },
+            if let Some(container) = browser_container {
+                format!("::{}", container.into())
+            } else {
+                String::from("")
+            }
+        ));
+        self
+    }
+
     /// Set a process-level timeout for youtube-dl. (this controls the maximum overall duration
     /// the process may take, when it times out, `Error::ProcessTimeout` is returned)
     pub fn process_timeout(&mut self, timeout: Duration) -> &mut Self {
@@ -399,6 +433,12 @@ impl YoutubeDl {
     /// Set the `--playlist-items` command line flag.
     pub fn playlist_items(&mut self, index: u32) -> &mut Self {
         self.playlist_items = Some(index.to_string());
+        self
+    }
+
+    /// Set the `--max-downloads` command line flag.
+    pub fn max_downloads(&mut self, max_downloads: u32) -> &mut Self {
+        self.max_downloads = Some(max_downloads.to_string());
         self
     }
 
@@ -476,6 +516,11 @@ impl YoutubeDl {
             args.push(cookie_path);
         }
 
+        if let Some(cookies_from_browser) = &self.cookies_from_browser {
+            args.push("--cookies-from-browser");
+            args.push(cookies_from_browser);
+        }
+
         if let Some(user_agent) = &self.user_agent {
             args.push("--user-agent");
             args.push(user_agent);
@@ -493,6 +538,11 @@ impl YoutubeDl {
         if let Some(playlist_items) = &self.playlist_items {
             args.push("--playlist-items");
             args.push(playlist_items);
+        }
+
+        if let Some(max_downloads) = &self.max_downloads {
+            args.push("--max-downloads");
+            args.push(max_downloads);
         }
 
         if let Some(output_template) = &self.output_template {
