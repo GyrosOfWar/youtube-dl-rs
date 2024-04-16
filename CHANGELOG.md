@@ -1,5 +1,11 @@
 # Unreleased
 
+# 0.10.0
+- feat: Upgrade `reqwest` dependency to 0.12
+- fix: Hide `cmd` window on Windows
+- feat: Add support for `--cookies-from-browser` and `--max-downloads` options
+
+
 # 0.9.0
 - feat: Add `ignore_errors` to builder and options
 - fix: Add niconico_dmc to formats
