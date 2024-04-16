@@ -26,9 +26,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::error::Error as StdError;
 use std::fmt;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::time::Duration;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Exposes a function to download the latest version of youtube-dl/yt-dlp.
 #[cfg(any(feature = "downloader-rustls-tls", feature = "downloader-native-tls"))]
@@ -615,7 +620,15 @@ impl YoutubeDl {
         use wait_timeout::ChildExt;
 
         let path = self.path();
+        #[cfg(not(target_os = "windows"))]
         let mut child = Command::new(path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .args(args)
+            .spawn()?;
+        #[cfg(target_os = "windows")]
+        let mut child = Command::new(path)
+            .creation_flags(CREATE_NO_WINDOW)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .args(args)
@@ -659,7 +672,15 @@ impl YoutubeDl {
         use tokio::time::timeout;
 
         let path = self.path();
+        #[cfg(not(target_os = "windows"))]
         let mut child = Command::new(path)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .args(args)
+            .spawn()?;
+        #[cfg(target_os = "windows")]
+        let mut child = Command::new(path)
+            .creation_flags(CREATE_NO_WINDOW)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .args(args)
