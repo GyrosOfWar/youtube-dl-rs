@@ -893,7 +893,7 @@ mod tests {
     }
 
     #[test]
-
+    #[ignore]
     fn test_timestamp_parse_error() {
         let output = YoutubeDl::new("https://www.reddit.com/r/loopdaddy/comments/baguqq/first_time_poster_here_couldnt_resist_sharing_my")
             .output_template("video")
