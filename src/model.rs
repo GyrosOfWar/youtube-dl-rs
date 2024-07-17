@@ -90,6 +90,7 @@ pub struct JsonOutput {
     pub average_rating: Option<Value>,
     pub categories: Option<Vec<Option<String>>>,
     pub channel: Option<String>,
+    pub channel_follower_count: Option<i64>,
     pub channel_id: Option<String>,
     pub channel_url: Option<String>,
     pub chapter: Option<String>,
@@ -154,6 +155,7 @@ pub struct JsonOutput {
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Playlist {
+    pub channel_follower_count: Option<i64>,
     #[serde(default, deserialize_with = "parse_entries")]
     pub entries: Option<Vec<SingleVideo>>,
     pub extractor: Option<String>,
@@ -183,6 +185,7 @@ pub struct SingleVideo {
     pub average_rating: Option<Value>,
     pub categories: Option<Vec<Option<String>>>,
     pub channel: Option<String>,
+    pub channel_follower_count: Option<i64>,
     pub channel_id: Option<String>,
     pub channel_url: Option<String>,
     pub chapter: Option<String>,
