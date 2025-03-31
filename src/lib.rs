@@ -670,49 +670,67 @@ impl YoutubeDl {
         use tokio::io::AsyncReadExt;
         use tokio::process::Command;
         use tokio::time::timeout;
+        use nix::sys::signal::{killpg, Signal};
+        use nix::unistd::Pid;
 
         let path = self.path();
         #[cfg(not(target_os = "windows"))]
-        let mut child = Command::new(path)
+        let mut cmd = Command::new(path)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .args(args)
+            .process_group(0) // Set the child process to run in its own process group
             .spawn()?;
         #[cfg(target_os = "windows")]
-        let mut child = Command::new(path)
+        let mut cmd = Command::new(path)
             .creation_flags(CREATE_NO_WINDOW)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .args(args)
             .spawn()?;
 
-        // Continually read from stdout so that it does not fill up with large output and hang forever.
-        // We don't need to do this for stderr since only stdout has potentially giant JSON.
-        let mut stdout = Vec::new();
-        let child_stdout = child.stdout.take();
-        tokio::io::copy(&mut child_stdout.unwrap(), &mut stdout).await?;
+        let pid = cmd.id().ok_or(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "failed to get process ID",
+        )))?;
 
-        let exit_code = if let Some(dur) = self.process_timeout {
-            match timeout(dur, child.wait()).await {
-                Ok(n) => n?,
-                Err(_) => {
-                    child.kill().await?;
-                    return Err(Error::ProcessTimeout);
-                }
+        let result = timeout(self.process_timeout.unwrap_or(Duration::MAX), async {
+            // Continually read from stdout so that it does not fill up with large output and hang forever
+            let mut stdout = Vec::new();
+            if let Some(mut child_stdout) = cmd.stdout.take() {
+                tokio::io::copy(&mut child_stdout, &mut stdout).await?;
             }
-        } else {
-            child.wait().await?
-        };
-        let mut stderr = vec![];
-        if let Some(mut reader) = child.stderr {
-            reader.read_to_end(&mut stderr).await?;
-        }
 
-        Ok(ProcessResult {
-            stdout,
-            stderr,
-            exit_code,
+            // Read stderr
+            let mut stderr = Vec::new();
+            if let Some(mut reader) = cmd.stderr.take() {
+                reader.read_to_end(&mut stderr).await?;
+            }
+
+            // Wait for the process to exit
+            let exit_code = cmd.wait().await?;
+
+            Ok(ProcessResult {
+                stdout,
+                stderr,
+                exit_code,
+            })
         })
+        .await;
+
+        match result {
+            Ok(Ok(process_result)) => Ok(process_result),
+            Ok(Err(e)) => Err(e),
+            Err(_) => {
+                // Timeout occurred: kill the entire process group
+                killpg(Pid::from_raw(pid as i32), Signal::SIGKILL)
+                    .map_err(|e| Error::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("failed to kill process group: {}", e),
+                    )))?;
+                Err(Error::ProcessTimeout)
+            }
+        }
     }
 
     fn process_json_output(&self, stdout: Vec<u8>) -> Result<YoutubeDlOutput, Error> {
