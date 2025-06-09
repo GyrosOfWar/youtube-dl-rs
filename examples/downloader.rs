@@ -1,4 +1,4 @@
-use youtube_dl::{download_yt_dlp, YoutubeDl};
+use youtube_dl::{YoutubeDl, download_yt_dlp};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
