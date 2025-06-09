@@ -959,9 +959,21 @@ mod tests {
             .output_template("yee")
             .download_to(".")
             .unwrap();
-        assert!(Path::new("yee.webm").is_file() || Path::new("yee").is_file());
-        let _ = std::fs::remove_file("yee.webm");
-        let _ = std::fs::remove_file("yee");
+        let paths = vec![
+            Path::new("yee.webm"),
+            Path::new("yee"),
+            Path::new("yee.mp4"),
+        ];
+        assert!(
+            paths.iter().any(|p| p.exists()),
+            "Downloaded file does not exist"
+        );
+
+        for path in paths {
+            if path.exists() {
+                std::fs::remove_file(path).unwrap();
+            }
+        }
     }
 
     #[test]
