@@ -155,11 +155,14 @@ pub async fn download_yt_dlp(destination: impl AsRef<Path>) -> Result<PathBuf, E
 
 #[cfg(test)]
 mod tests {
-    use crate::{download_yt_dlp, YoutubeDl};
+    use crate::{YoutubeDl, download_yt_dlp};
 
+    #[allow(unsafe_code)]
     fn logger() {
-        std::env::set_var("RUST_LOG", "info");
-        let _ = env_logger::try_init();
+        let _ = env_logger::builder()
+            .filter_level(log::LevelFilter::Debug)
+            .is_test(true)
+            .try_init();
     }
 
     #[tokio::test]

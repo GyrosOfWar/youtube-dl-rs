@@ -471,6 +471,7 @@ impl YoutubeDl {
     }
 
     #[cfg(test)]
+    #[allow(missing_docs)]
     pub fn debug(&mut self, arg: bool) -> &mut Self {
         self.debug = arg;
         self
