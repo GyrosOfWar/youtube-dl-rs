@@ -15,8 +15,9 @@ jobs:
     env:
       RUST_BACKTRACE: 1
     steps:
-      - name: Setup Python
-        uses: actions/setup-python@v3.1.1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
 
       - name: Install youtube-dl and yt-dlp
         run: pip install youtube-dl yt-dlp
@@ -24,7 +25,7 @@ jobs:
       - name: Install rustfmt
         run: rustup component add rustfmt
 
-      - uses: Swatinem/rust-cache@v1
+      - uses: Swatinem/rust-cache@v2
       - name: Install cargo-hack
         run: cargo install cargo-hack
 
