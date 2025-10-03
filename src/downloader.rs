@@ -1,7 +1,9 @@
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use crate::Error;
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use tokio::{
     fs::{self, File},
     io::AsyncWriteExt,
@@ -23,11 +25,13 @@ struct GithubRelease {
 struct GithubAsset {
     browser_download_url: String,
     name: String,
+    digest: String, // like "sha256:9215a371883aea75f0f2102c679333d813d9a5c3bceca212879a4a741a5b4657"
 }
 
 struct NewestRelease {
     url: String,
     tag: String,
+    digest: String,
 }
 
 /// Handles downloading of the youtube-dl/yt-dlp binary from GitHub.
@@ -83,16 +87,17 @@ impl YoutubeDlFetcher {
 
         log::debug!("received response from github: {:?}", release);
 
-        let url = release
+        let (url, digest) = release
             .assets
             .into_iter()
             .find(|r| r.name == FILE_NAME)
-            .map(|r| r.browser_download_url)
+            .map(|r| (r.browser_download_url, r.digest))
             .ok_or(Error::NoReleaseFound)?;
 
         Ok(NewestRelease {
             url,
             tag: release.tag_name,
+            digest,
         })
     }
 
@@ -122,8 +127,34 @@ impl YoutubeDlFetcher {
             .await?
             .error_for_status()?;
 
+        // Stream download while computing SHA-256 digest
+        let mut hasher = Sha256::new();
         while let Some(chunk) = response.chunk().await? {
+            hasher.update(&chunk);
             file.write_all(&chunk).await?;
+        }
+
+        // Verify digest if provided in release metadata
+        let expected = release
+            .digest
+            .strip_prefix("sha256:")
+            .unwrap_or(&release.digest)
+            .to_ascii_lowercase();
+        let actual = hex::encode(hasher.finalize());
+
+        if !expected.is_empty() && actual != expected {
+            // best-effort cleanup; ignore error if remove fails
+            let _ = fs::remove_file(&path).await;
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!(
+                    "SHA-256 digest mismatch for {}: expected {}, got {}",
+                    path.display(),
+                    expected,
+                    actual
+                ),
+            )
+            .into());
         }
 
         Ok(path)

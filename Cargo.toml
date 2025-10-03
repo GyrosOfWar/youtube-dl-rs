@@ -12,8 +12,8 @@ keywords = ["youtube-dl", "youtube", "yt-dlp"]
 
 [features]
 default = []
-downloader-native-tls = ["reqwest", "tokio", "reqwest/native-tls"]
-downloader-rustls-tls = ["reqwest", "tokio", "reqwest/rustls-tls"]
+downloader-native-tls = ["reqwest", "tokio", "reqwest/native-tls", "sha2", "hex"]
+downloader-rustls-tls = ["reqwest", "tokio", "reqwest/rustls-tls", "sha2", "hex"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -22,6 +22,8 @@ log = "0.4"
 wait-timeout = "0.2"
 tokio = { version = "1", optional = true, features = ["io-util", "process", "time", "fs"] }
 reqwest = { version = "0.12", optional = true, features = ["json"], default-features = false }
+sha2 = { version = "0.10", optional = true }
+hex = { version = "0.4", optional = true }
 
 [dev-dependencies]
 env_logger = "0.11"
