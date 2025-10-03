@@ -827,29 +827,50 @@ impl YoutubeDl {
     }
 
     /// Download the file to the specified destination folder.
-    pub fn download_to(&self, folder: impl AsRef<Path>) -> Result<(), Error> {
+    pub fn download_to(&self, folder: impl AsRef<Path>) -> Result<ProcessResult, Error> {
         let folder_str = folder.as_ref().to_string_lossy();
         let args = self.process_download_args(&folder_str);
-        self.run_process(args)?;
-
-        Ok(())
+        self.run_process(args)
     }
 
     /// Download the file to the specified destination folder asynchronously.
     #[cfg(feature = "tokio")]
-    pub async fn download_to_async(&self, folder: impl AsRef<Path>) -> Result<(), Error> {
+    pub async fn download_to_async(
+        &self,
+        folder: impl AsRef<Path>,
+    ) -> Result<ProcessResult, Error> {
         let folder_str = folder.as_ref().to_string_lossy();
         let args = self.process_download_args(&folder_str);
-        self.run_process_async(args).await?;
-
-        Ok(())
+        self.run_process_async(args).await
     }
 }
 
-struct ProcessResult {
-    stdout: Vec<u8>,
-    stderr: Vec<u8>,
-    exit_code: ExitStatus,
+#[derive(Debug)]
+/// Represents the result of a process execution.
+pub struct ProcessResult {
+    /// Standard output from the process as a vector of bytes.
+    pub stdout: Vec<u8>,
+    /// Standard error output from the process as a vector of bytes.
+    pub stderr: Vec<u8>,
+    /// The exit status of the process. This can be used to determine if the process
+    /// exited successfully or if there was an error.
+    pub exit_code: ExitStatus,
+}
+
+impl fmt::Display for ProcessResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let stdout_str = std::str::from_utf8(&self.stdout).unwrap_or_default();
+        let stderr_str = std::str::from_utf8(&self.stderr).unwrap_or_default();
+        let exit_code_str = match self.exit_code.success() {
+            true => "Success".to_string(),
+            false => format!("Error with exit code: {}", self.exit_code),
+        };
+        write!(
+            f,
+            "ProcessResult:\n  stdout: {}\n  stderr: {}\n  exit_code: {}",
+            stdout_str, stderr_str, exit_code_str
+        )
+    }
 }
 
 #[cfg(test)]
